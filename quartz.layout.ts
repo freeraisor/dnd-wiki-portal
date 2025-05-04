@@ -1,5 +1,10 @@
 import { PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
+import { Options } from "./quartz/components/Explorer"
+
+export const filterFn: Options["filterFn"] = (node) => {
+  return !node.displayName.toLowerCase().startsWith("_")
+}
 
 // components shared across all pages
 export const sharedPageComponents: SharedLayout = {
@@ -7,10 +12,7 @@ export const sharedPageComponents: SharedLayout = {
   header: [],
   afterBody: [],
   footer: Component.Footer({
-    links: {
-      GitHub: "https://github.com/jackyzha0/quartz",
-      "Discord Community": "https://discord.gg/cRFFHYye7t",
-    },
+    links: {},
   }),
 }
 
@@ -39,7 +41,9 @@ export const defaultContentPageLayout: PageLayout = {
         { Component: Component.ReaderMode() },
       ],
     }),
-    Component.Explorer(),
+    Component.Explorer({
+      filterFn,
+    }),
   ],
   right: [
     Component.Graph(),
