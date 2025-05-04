@@ -80,13 +80,6 @@ export const FrontMatter: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
             const tags = coerceToArray(coalesceAliases(data, ["tags", "tag"]))
             if (tags) data.tags = [...new Set(tags.map((tag: string) => slugTag(tag)))]
 
-            /* --- themes --------------------------------------------------------- */
-            const themes = coerceToArray(coalesceAliases(data, ["themes", "theme"]))
-            if (themes) {
-              // храним строки «как есть», чтобы [[wikilink]] не потерялся
-              data.themes = themes.map((t) => t.trim())
-            }
-
             const aliases = coerceToArray(coalesceAliases(data, ["aliases", "alias"]))
             if (aliases) {
               data.aliases = aliases // frontmatter
