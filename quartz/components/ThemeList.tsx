@@ -8,8 +8,11 @@ const ThemeList = ({ fileData }: QuartzComponentProps) => {
     <section class="theme-list">
       <h3>Themes:</h3>
       <ul>
-        {themes.map((raw) => {
-          const clean = raw.replace(/^\[\[|\]\]$/g, "")
+      {themes.map((raw) => {
+          // убираем возможные кавычки + [[wikilink]]
+          const clean = raw
+            .replace(/^['"]?\[\[/, "")
+            .replace(/\]\]['"]?$/, "")
           return (
             <li>
               {/* ссылка ведёт на саму страницу-тему */}
