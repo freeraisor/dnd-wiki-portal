@@ -80,6 +80,13 @@ export const FrontMatter: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
             const tags = coerceToArray(coalesceAliases(data, ["tags", "tag"]))
             if (tags) data.tags = [...new Set(tags.map((tag: string) => slugTag(tag)))]
 
+            /* --- themes --------------------------------------------------------- */
+            const themes = coerceToArray(coalesceAliases(data, ["themes", "theme"]))
+            if (themes) {
+              // храним строки «как есть», чтобы [[wikilink]] не потерялся
+              data.themes = themes.map((t) => t.trim())
+            }
+
             const aliases = coerceToArray(coalesceAliases(data, ["aliases", "alias"]))
             if (aliases) {
               data.aliases = aliases // frontmatter
@@ -130,6 +137,8 @@ export const FrontMatter: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
 declare module "vfile" {
   interface DataMap {
     aliases: FullSlug[]
+    /* сохраняем разобранные темы, пригодится в компонентах */
+    themes?: string[]
     frontmatter: { [key: string]: unknown } & {
       title: string
     } & Partial<{
@@ -147,6 +156,7 @@ declare module "vfile" {
         cssclasses: string[]
         socialImage: string
         comments: boolean | string
+        themes?: string[]
       }>
   }
 }
