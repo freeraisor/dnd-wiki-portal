@@ -63,6 +63,24 @@ function extractCompressedJson(markdown: string): string | null {
 }
 
 /**
+ * Extract plain json from raw markdown text
+ * For test/demo files that use plain JSON format
+ */
+function extractPlainJson(markdown: string): ExcalidrawData | null {
+  // Look for ```json blocks with excalidraw data
+  const regex = /```json\s*\n([\s\S]*?)\n```/
+  const match = markdown.match(regex)
+  if (!match) return null
+
+  try {
+    const parsed = JSON.parse(match[1])
+    return parsed.type === "excalidraw" ? parsed : null
+  } catch (e) {
+    return null
+  }
+}
+
+/**
  * Transformer plugin for Excalidraw drawings
  * Parses .excalidraw.md files and extracts drawing data
  */
@@ -90,10 +108,15 @@ export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> =
                 rawMarkdown = fs.readFileSync(filePath, "utf-8")
               }
 
+              // Try compressed format first (real Obsidian files)
               const compressedData = extractCompressedJson(rawMarkdown)
-
               if (compressedData) {
                 excalidrawData = decompressExcalidrawData(compressedData)
+              }
+
+              // Fallback to plain JSON format (test/demo files)
+              if (!excalidrawData) {
+                excalidrawData = extractPlainJson(rawMarkdown)
               }
 
               // Store data for component to use
