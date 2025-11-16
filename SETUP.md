@@ -151,41 +151,14 @@ Component.ConditionalRender({
 
 ## Testing Locally
 
-### 1. Create Example Map
+An example dungeon map is included in the repository to test the Excalidraw integration.
 
-Create `content/example-map.excalidraw.md`:
+### 1. Example Map Included
 
-```markdown
----
-excalidraw-plugin: parsed
-tags: [example]
-title: Example Map
----
-
-# Example Map
-
-\```json
-{
-  "type": "excalidraw",
-  "version": 2,
-  "source": "https://excalidraw.com",
-  "elements": [
-    {
-      "type": "text",
-      "id": "text-1",
-      "x": 100,
-      "y": 100,
-      "text": "Test Marker",
-      "link": "[[test-page]]",
-      "fontSize": 20
-    }
-  ],
-  "appState": {
-    "viewBackgroundColor": "transparent"
-  }
-}
-\```
-```
+The repository includes:
+- `content/example-dungeon-map.excalidraw.md` - Complete example with rooms, markers, zones, and fog of war
+- `content/entrance-hall.md` - Linked location page
+- `content/treasure-room.md` - Linked location page
 
 ### 2. Build and Serve
 
@@ -195,7 +168,13 @@ npx quartz build --serve
 
 ### 3. Open in Browser
 
-Navigate to `http://localhost:8080/example-map` to see the rendered map.
+Navigate to `http://localhost:8080/example-dungeon-map.excalidraw` to see the rendered map with:
+- Interactive markers linking to "Entrance Hall" and "Treasure Room"
+- Semi-transparent highlight zone over treasure area
+- Fog of war hiding unexplored areas
+- Map statistics showing 2 markers, 2 zones, and 7 elements total
+
+Click on the linked markers to navigate to the respective location pages.
 
 ## Troubleshooting
 
