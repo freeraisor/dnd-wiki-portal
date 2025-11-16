@@ -1,31 +1,36 @@
 // Excalidraw Map Viewer
 document.addEventListener("DOMContentLoaded", () => {
-  const mapContainers = document.querySelectorAll(".excalidraw-map-canvas")
+  const mapContainers = document.querySelectorAll(".excalidraw-map-container")
 
   mapContainers.forEach(async (container) => {
-    const fileSlug = container.id.replace("excalidraw-", "")
-
     try {
-      // Get excalidraw data from page data
-      const pageData = (window as any).__QUARTZ_DATA__
-      if (!pageData || !pageData.excalidraw) {
-        console.warn("No Excalidraw data found for", fileSlug)
+      // Get excalidraw data from data attribute
+      const dataAttr = container.getAttribute("data-excalidraw")
+      if (!dataAttr) {
+        console.warn("No Excalidraw data found")
         return
       }
 
-      const data = pageData.excalidraw
+      const data = JSON.parse(dataAttr)
+      const canvas = container.querySelector(".excalidraw-map-canvas")
+      if (!canvas) {
+        console.warn("No canvas element found")
+        return
+      }
 
-      // For now, show a simple SVG preview
-      // TODO: Integrate full @excalidraw/excalidraw component
-      renderExcalidrawPreview(container, data)
+      // Render the map
+      renderExcalidrawPreview(canvas, data)
     } catch (error: any) {
       console.error("Error rendering Excalidraw:", error)
-      container.innerHTML = `
-            <div class="excalidraw-error">
-              <p>⚠️ Error loading map</p>
-              <p class="error-details">${error.message}</p>
-            </div>
-          `
+      const canvas = container.querySelector(".excalidraw-map-canvas")
+      if (canvas) {
+        canvas.innerHTML = `
+          <div class="excalidraw-error">
+            <p>⚠️ Error loading map</p>
+            <p class="error-details">${error.message}</p>
+          </div>
+        `
+      }
     }
   })
 })

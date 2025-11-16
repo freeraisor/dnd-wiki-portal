@@ -31,36 +31,16 @@ export default (() => {
         el.opacity < 100,
     ).length
 
+    // Serialize data for client-side rendering
+    const dataJson = JSON.stringify(excalidrawData)
+
     return (
-      <div class={classNames(displayClass, "excalidraw-map-container")}>
-        <div class="excalidraw-map-header">
-          <h3>🗺️ Interactive Map</h3>
-          <div class="excalidraw-map-stats">
-            <span class="excalidraw-stat">
-              <span class="excalidraw-stat-icon">📍</span>
-              {markerCount} markers
-            </span>
-            <span class="excalidraw-stat">
-              <span class="excalidraw-stat-icon">🎯</span>
-              {zoneCount} zones
-            </span>
-            <span class="excalidraw-stat">
-              <span class="excalidraw-stat-icon">📐</span>
-              {elements.length} elements
-            </span>
-          </div>
-        </div>
-
-        <div class="excalidraw-map-viewer">
-          <div class="excalidraw-map-canvas" id={`excalidraw-${fileData.slug}`}>
-            {/* Canvas will be rendered by client-side script */}
-          </div>
-        </div>
-
-        <div class="excalidraw-map-footer">
-          <p class="excalidraw-map-note">
-            💡 This is an Excalidraw map. Open in Obsidian to edit.
-          </p>
+      <div
+        class={classNames(displayClass, "excalidraw-map-container")}
+        data-excalidraw={dataJson}
+      >
+        <div class="excalidraw-map-canvas" id={`excalidraw-${fileData.slug}`}>
+          {/* Canvas will be rendered by client-side script */}
         </div>
       </div>
     )
@@ -69,49 +49,31 @@ export default (() => {
   ExcalidrawMap.afterDOMLoaded = excalidrawScript
 
   ExcalidrawMap.css = `
+    /* Hide everything for Excalidraw maps */
+    body[data-slug$=".excalidraw"] .left.sidebar,
+    body[data-slug$=".excalidraw"] .right.sidebar,
+    body[data-slug$=".excalidraw"] .page-header,
+    body[data-slug$=".excalidraw"] article,
+    body[data-slug$=".excalidraw"] .page-footer,
+    body[data-slug$=".excalidraw"] footer {
+      display: none !important;
+    }
+
+    body[data-slug$=".excalidraw"] .center {
+      max-width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
     .excalidraw-map-container {
-      margin: 2rem 0;
-      border: 1px solid var(--gray);
-      border-radius: 8px;
-      overflow: hidden;
-      background: var(--light);
-    }
-
-    .excalidraw-map-header {
-      padding: 1rem;
-      background: var(--lightgray);
-      border-bottom: 1px solid var(--gray);
-    }
-
-    .excalidraw-map-header h3 {
-      margin: 0 0 0.5rem 0;
-      font-size: 1.2rem;
-    }
-
-    .excalidraw-map-stats {
-      display: flex;
-      gap: 1rem;
-      font-size: 0.9rem;
-      color: var(--gray);
-    }
-
-    .excalidraw-stat {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-    }
-
-    .excalidraw-stat-icon {
-      font-size: 1.1em;
-    }
-
-    .excalidraw-map-viewer {
-      padding: 1rem;
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
       background: white;
-      min-height: 400px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      overflow: hidden;
+      z-index: 1;
     }
 
     .excalidraw-map-canvas {
@@ -123,43 +85,16 @@ export default (() => {
     }
 
     .excalidraw-map-canvas svg {
-      max-width: 100%;
+      max-width: 95%;
+      max-height: 95%;
+      width: auto;
       height: auto;
-    }
-
-    .excalidraw-map-footer {
-      padding: 0.75rem 1rem;
-      background: var(--lightgray);
-      border-top: 1px solid var(--gray);
-    }
-
-    .excalidraw-map-note {
-      margin: 0;
-      font-size: 0.85rem;
-      color: var(--gray);
     }
 
     .excalidraw-error {
       padding: 2rem;
       text-align: center;
       color: var(--red);
-    }
-
-    .error-details {
-      font-size: 0.85rem;
-      color: var(--gray);
-      margin-top: 0.5rem;
-    }
-
-    @media (max-width: 768px) {
-      .excalidraw-map-stats {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .excalidraw-map-viewer {
-        min-height: 300px;
-      }
     }
   `
 
