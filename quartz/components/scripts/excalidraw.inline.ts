@@ -118,6 +118,45 @@ function renderExcalidrawPreview(container: Element, data: any) {
       } else {
         group.appendChild(text)
       }
+    } else if (el.type === "freedraw") {
+      // Handle freehand drawing
+      if (el.points && el.points.length > 0) {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
+
+        // Convert points array to SVG path
+        let d = `M ${el.x + el.points[0][0]} ${el.y + el.points[0][1]}`
+        for (let i = 1; i < el.points.length; i++) {
+          d += ` L ${el.x + el.points[i][0]} ${el.y + el.points[i][1]}`
+        }
+
+        path.setAttribute("d", d)
+        path.setAttribute("fill", "none")
+        path.setAttribute("stroke", el.strokeColor || "#000")
+        path.setAttribute("stroke-width", String(el.strokeWidth || 1))
+        path.setAttribute("opacity", String((el.opacity || 100) / 100))
+        path.setAttribute("stroke-linecap", "round")
+        path.setAttribute("stroke-linejoin", "round")
+
+        group.appendChild(path)
+      }
+    } else if (el.type === "line" || el.type === "arrow") {
+      // Handle lines and arrows
+      if (el.points && el.points.length > 0) {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
+
+        let d = `M ${el.x + el.points[0][0]} ${el.y + el.points[0][1]}`
+        for (let i = 1; i < el.points.length; i++) {
+          d += ` L ${el.x + el.points[i][0]} ${el.y + el.points[i][1]}`
+        }
+
+        path.setAttribute("d", d)
+        path.setAttribute("fill", "none")
+        path.setAttribute("stroke", el.strokeColor || "#000")
+        path.setAttribute("stroke-width", String(el.strokeWidth || 1))
+        path.setAttribute("opacity", String((el.opacity || 100) / 100))
+
+        group.appendChild(path)
+      }
     } else if (el.type === "image" && el.fileId) {
       // Handle images
       const imageData = data.files?.[el.fileId]
