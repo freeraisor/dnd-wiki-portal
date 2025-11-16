@@ -32,7 +32,8 @@ function decompressExcalidrawData(compressedData: string): ExcalidrawData | null
     const decompressed = LZString.decompressFromBase64(cleaned)
 
     if (!decompressed) {
-      console.error("LZString decompression returned null")
+      console.error("LZString decompression returned null for data length:", cleaned.length)
+      console.error("Data preview:", cleaned.substring(0, 100))
       return null
     }
 

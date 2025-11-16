@@ -1,5 +1,5 @@
-// Excalidraw Map Viewer
-document.addEventListener("DOMContentLoaded", () => {
+// Excalidraw Map Viewer with Pan and Zoom
+function initExcalidrawMaps() {
   const mapContainers = document.querySelectorAll(".excalidraw-map-container")
 
   mapContainers.forEach(async (container) => {
@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       // Render the map
-      renderExcalidrawPreview(canvas, data)
+      renderExcalidrawPreview(canvas as HTMLElement, data, container as HTMLElement)
     } catch (error: any) {
       console.error("Error rendering Excalidraw:", error)
       const canvas = container.querySelector(".excalidraw-map-canvas")
@@ -33,9 +33,168 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
   })
-})
+}
 
-function renderExcalidrawPreview(container: Element, data: any) {
+// Initialize on both initial load and SPA navigation
+document.addEventListener("DOMContentLoaded", initExcalidrawMaps)
+document.addEventListener("nav", initExcalidrawMaps)
+
+class PanZoom {
+  private svg: SVGElement
+  private container: HTMLElement
+  private viewBox: { x: number; y: number; width: number; height: number }
+  private scale = 1
+  private isPanning = false
+  private startPoint = { x: 0, y: 0 }
+  private endPoint = { x: 0, y: 0 }
+
+  constructor(svg: SVGElement, container: HTMLElement) {
+    this.svg = svg
+    this.container = container
+
+    // Get initial viewBox
+    const vb = svg.getAttribute("viewBox")?.split(" ").map(Number) || [0, 0, 800, 600]
+    this.viewBox = { x: vb[0], y: vb[1], width: vb[2], height: vb[3] }
+
+    this.setupEventListeners()
+  }
+
+  private setupEventListeners() {
+    // Mouse events for panning
+    this.container.addEventListener("mousedown", this.onMouseDown.bind(this))
+    this.container.addEventListener("mousemove", this.onMouseMove.bind(this))
+    this.container.addEventListener("mouseup", this.onMouseUp.bind(this))
+    this.container.addEventListener("mouseleave", this.onMouseUp.bind(this))
+
+    // Touch events for mobile
+    this.container.addEventListener("touchstart", this.onTouchStart.bind(this), {
+      passive: false,
+    })
+    this.container.addEventListener("touchmove", this.onTouchMove.bind(this), {
+      passive: false,
+    })
+    this.container.addEventListener("touchend", this.onTouchEnd.bind(this))
+
+    // Wheel for zoom
+    this.container.addEventListener("wheel", this.onWheel.bind(this), { passive: false })
+  }
+
+  private getPoint(event: MouseEvent | Touch) {
+    const rect = this.container.getBoundingClientRect()
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    }
+  }
+
+  private onMouseDown(event: MouseEvent) {
+    this.isPanning = true
+    this.startPoint = this.getPoint(event)
+    this.endPoint = this.startPoint
+    this.container.style.cursor = "grabbing"
+  }
+
+  private onMouseMove(event: MouseEvent) {
+    if (!this.isPanning) return
+
+    this.endPoint = this.getPoint(event)
+    const dx = (this.endPoint.x - this.startPoint.x) * (this.viewBox.width / this.container.clientWidth)
+    const dy =
+      (this.endPoint.y - this.startPoint.y) * (this.viewBox.height / this.container.clientHeight)
+
+    this.viewBox.x -= dx
+    this.viewBox.y -= dy
+    this.updateViewBox()
+
+    this.startPoint = this.endPoint
+  }
+
+  private onMouseUp() {
+    this.isPanning = false
+    this.container.style.cursor = "grab"
+  }
+
+  private onTouchStart(event: TouchEvent) {
+    if (event.touches.length === 1) {
+      event.preventDefault()
+      this.isPanning = true
+      this.startPoint = this.getPoint(event.touches[0])
+      this.endPoint = this.startPoint
+    }
+  }
+
+  private onTouchMove(event: TouchEvent) {
+    if (!this.isPanning || event.touches.length !== 1) return
+
+    event.preventDefault()
+    this.endPoint = this.getPoint(event.touches[0])
+    const dx = (this.endPoint.x - this.startPoint.x) * (this.viewBox.width / this.container.clientWidth)
+    const dy =
+      (this.endPoint.y - this.startPoint.y) * (this.viewBox.height / this.container.clientHeight)
+
+    this.viewBox.x -= dx
+    this.viewBox.y -= dy
+    this.updateViewBox()
+
+    this.startPoint = this.endPoint
+  }
+
+  private onTouchEnd() {
+    this.isPanning = false
+  }
+
+  private onWheel(event: WheelEvent) {
+    event.preventDefault()
+
+    const delta = event.deltaY > 0 ? 1.1 : 0.9
+    this.zoom(delta, this.getPoint(event))
+  }
+
+  public zoom(factor: number, point?: { x: number; y: number }) {
+    const oldScale = this.scale
+    this.scale *= factor
+
+    // Limit zoom
+    if (this.scale < 0.1) {
+      this.scale = 0.1
+      return
+    }
+    if (this.scale > 10) {
+      this.scale = 10
+      return
+    }
+
+    if (point) {
+      // Zoom towards mouse position
+      const scaleChange = factor - 1
+      const viewX = this.viewBox.x + (point.x / this.container.clientWidth) * this.viewBox.width
+      const viewY = this.viewBox.y + (point.y / this.container.clientHeight) * this.viewBox.height
+
+      this.viewBox.x += viewX * scaleChange
+      this.viewBox.y += viewY * scaleChange
+    }
+
+    this.viewBox.width /= factor
+    this.viewBox.height /= factor
+
+    this.updateViewBox()
+  }
+
+  public reset(initialViewBox: { x: number; y: number; width: number; height: number }) {
+    this.scale = 1
+    this.viewBox = { ...initialViewBox }
+    this.updateViewBox()
+  }
+
+  private updateViewBox() {
+    this.svg.setAttribute(
+      "viewBox",
+      `${this.viewBox.x} ${this.viewBox.y} ${this.viewBox.width} ${this.viewBox.height}`,
+    )
+  }
+}
+
+function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer: HTMLElement) {
   // Simple preview renderer
   const { elements = [], appState = {} } = data
 
@@ -56,7 +215,14 @@ function renderExcalidrawPreview(container: Element, data: any) {
 
   const width = maxX - minX || 800
   const height = maxY - minY || 600
-  const padding = 20
+  const padding = 50
+
+  const initialViewBox = {
+    x: minX - padding,
+    y: minY - padding,
+    width: width + padding * 2,
+    height: height + padding * 2,
+  }
 
   // Create SVG
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
@@ -64,9 +230,8 @@ function renderExcalidrawPreview(container: Element, data: any) {
   svg.setAttribute("height", "100%")
   svg.setAttribute(
     "viewBox",
-    `${minX - padding} ${minY - padding} ${width + padding * 2} ${height + padding * 2}`,
+    `${initialViewBox.x} ${initialViewBox.y} ${initialViewBox.width} ${initialViewBox.height}`,
   )
-  svg.style.maxHeight = "600px"
 
   // Render elements
   elements.forEach((el: any) => {
@@ -174,6 +339,30 @@ function renderExcalidrawPreview(container: Element, data: any) {
     svg.appendChild(group)
   })
 
+  // Clear container and add SVG
   container.innerHTML = ""
   container.appendChild(svg)
+  container.style.cursor = "grab"
+
+  // Initialize pan and zoom
+  const panZoom = new PanZoom(svg, container)
+
+  // Add control buttons
+  const controls = document.createElement("div")
+  controls.className = "excalidraw-controls"
+  controls.innerHTML = `
+    <button class="excalidraw-btn zoom-in" title="Zoom In">+</button>
+    <button class="excalidraw-btn zoom-out" title="Zoom Out">−</button>
+    <button class="excalidraw-btn reset" title="Reset View">⟲</button>
+  `
+
+  const zoomInBtn = controls.querySelector(".zoom-in")
+  const zoomOutBtn = controls.querySelector(".zoom-out")
+  const resetBtn = controls.querySelector(".reset")
+
+  zoomInBtn?.addEventListener("click", () => panZoom.zoom(0.8))
+  zoomOutBtn?.addEventListener("click", () => panZoom.zoom(1.2))
+  resetBtn?.addEventListener("click", () => panZoom.reset(initialViewBox))
+
+  mapContainer.appendChild(controls)
 }
