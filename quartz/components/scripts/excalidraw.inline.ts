@@ -111,6 +111,7 @@ function renderExcalidraw(
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
   svg.setAttribute("width", "100%")
   svg.setAttribute("height", "100%")
+  svg.setAttribute("preserveAspectRatio", "xMidYMid slice")
   svg.setAttribute(
     "viewBox",
     `${initialViewBox.x} ${initialViewBox.y} ${initialViewBox.width} ${initialViewBox.height}`,

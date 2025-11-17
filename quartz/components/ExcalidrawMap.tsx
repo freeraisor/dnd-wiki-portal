@@ -42,7 +42,17 @@ export default (() => {
     body[data-slug$=".excalidraw"] .left.sidebar,
     body[data-slug$=".excalidraw"] .right.sidebar,
     body[data-slug$=".excalidraw"] .page-footer,
-    body[data-slug$=".excalidraw"] footer {
+    body[data-slug$=".excalidraw"] footer,
+    body[data-slug$=".excalidraw.md"] .left.sidebar,
+    body[data-slug$=".excalidraw.md"] .right.sidebar,
+    body[data-slug$=".excalidraw.md"] .page-footer,
+    body[data-slug$=".excalidraw.md"] footer {
+      display: none !important;
+    }
+
+    /* Hide article content entirely */
+    body[data-slug$=".excalidraw"] article,
+    body[data-slug$=".excalidraw.md"] article {
       display: none !important;
     }
 
@@ -65,18 +75,28 @@ export default (() => {
       display: none !important;
     }
 
-    body[data-slug$=".excalidraw"] .center {
+    body[data-slug$=".excalidraw"] .center,
+    body[data-slug$=".excalidraw.md"] .center {
       max-width: 100%;
       margin: 0;
       padding: 0;
+    }
+
+    body[data-slug$=".excalidraw"] #quartz-body,
+    body[data-slug$=".excalidraw.md"] #quartz-body {
+      padding: 0;
+    }
+
+    body[data-slug$=".excalidraw"],
+    body[data-slug$=".excalidraw.md"] {
+      overflow: hidden;
     }
 
     .excalidraw-map-container {
       width: 100vw;
       height: 100vh;
       position: fixed;
-      top: 0;
-      left: 0;
+      inset: 0;
       background: #ffffff;
       overflow: hidden;
       z-index: 1000;
@@ -89,16 +109,14 @@ export default (() => {
     .excalidraw-map-canvas {
       width: 100%;
       height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
 
     .excalidraw-map-canvas svg {
-      max-width: 95%;
-      max-height: 95%;
-      width: auto;
-      height: auto;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      max-height: none;
+      display: block;
     }
 
     .excalidraw-error {
