@@ -8,6 +8,7 @@ import {
   simplifySlug,
   splitAnchor,
   transformLink,
+  resolveRelative,
 } from "../../util/path"
 import path from "path"
 import { visit } from "unist-util-visit"
@@ -30,6 +31,38 @@ const defaultOptions: Options = {
   openLinksInNewTab: false,
   lazyLoad: false,
   externalLinkIcon: true,
+}
+
+const stripFileExtension = (slug: string): string => slug.replace(/\.[^./]+$/, "")
+
+const findMatchingSlug = (target: string, slugs: FullSlug[]): FullSlug | undefined => {
+  const normalizedTarget = stripSlashes(target, true)
+  const exact = slugs.find((slug) => stripSlashes(slug, true) === normalizedTarget)
+  if (exact) {
+    return exact
+  }
+
+  return slugs.find(
+    (slug) => stripFileExtension(stripSlashes(slug, true)) === normalizedTarget,
+  )
+}
+
+const mergeRelValues = (rel: string | string[] | undefined): string => {
+  const values = new Set<string>()
+  if (typeof rel === "string") {
+    rel
+      .split(/\s+/)
+      .filter(Boolean)
+      .forEach((value) => values.add(value))
+  } else if (Array.isArray(rel)) {
+    rel.filter((value): value is string => typeof value === "string").forEach((value) => {
+      values.add(value)
+    })
+  }
+
+  values.add("noopener")
+  values.add("noreferrer")
+  return Array.from(values).join(" ")
 }
 
 export const CrawlLinks: QuartzTransformerPlugin<Partial<Options>> = (userOpts) => {
@@ -110,17 +143,29 @@ export const CrawlLinks: QuartzTransformerPlugin<Partial<Options>> = (userOpts) 
                   // url.resolve is considered legacy
                   // WHATWG equivalent https://nodejs.dev/en/api/v18/url/#urlresolvefrom-to
                   const url = new URL(dest, "https://base.com/" + stripSlashes(curSlug, true))
-                  const canonicalDest = url.pathname
-                  let [destCanonical, _destAnchor] = splitAnchor(canonicalDest)
-                  if (destCanonical.endsWith("/")) {
-                    destCanonical += "index"
-                  }
+                const canonicalDest = url.pathname
+                const destHash = url.hash ?? ""
+                let [destCanonical, _destAnchor] = splitAnchor(canonicalDest)
+                if (destCanonical.endsWith("/")) {
+                  destCanonical += "index"
+                }
 
-                  // need to decodeURIComponent here as WHATWG URL percent-encodes everything
-                  const full = decodeURIComponent(stripSlashes(destCanonical, true)) as FullSlug
-                  const simple = simplifySlug(full)
-                  outgoing.add(simple)
-                  node.properties["data-slug"] = full
+                const normalizedDest = decodeURIComponent(stripSlashes(destCanonical, true))
+                const matchedSlug = findMatchingSlug(normalizedDest, ctx.allSlugs)
+                const slugForData = (matchedSlug ?? (normalizedDest as FullSlug)) as FullSlug
+                const simple = simplifySlug(slugForData)
+                outgoing.add(simple)
+                node.properties["data-slug"] = slugForData
+
+                if (matchedSlug) {
+                  const resolved = (resolveRelative(file.data.slug!, matchedSlug) + destHash) as RelativeURL
+                  node.properties.href = resolved
+
+                  if (matchedSlug.endsWith(".excalidraw")) {
+                    node.properties.target = "_blank"
+                    node.properties.rel = mergeRelValues(node.properties.rel as string | string[] | undefined)
+                  }
+                }
                 }
 
                 // rewrite link internals if prettylinks is on
