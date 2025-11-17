@@ -233,11 +233,43 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
     `${initialViewBox.x} ${initialViewBox.y} ${initialViewBox.width} ${initialViewBox.height}`,
   )
 
+  // Sort elements by fractional index for correct z-order
+  const sortedElements = [...elements].sort((a: any, b: any) => {
+    const indexA = a.index || "a0"
+    const indexB = b.index || "a0"
+    return indexA.localeCompare(indexB)
+  })
+
+  // Helper function to apply common styles
+  const applyStyles = (element: SVGElement, el: any) => {
+    element.setAttribute("stroke", el.strokeColor || "#000")
+    element.setAttribute("stroke-width", String(el.strokeWidth || 1))
+    element.setAttribute("opacity", String((el.opacity || 100) / 100))
+
+    // Apply stroke style (dashed, dotted)
+    if (el.strokeStyle === "dashed") {
+      element.setAttribute("stroke-dasharray", "8,8")
+    } else if (el.strokeStyle === "dotted") {
+      element.setAttribute("stroke-dasharray", "2,4")
+    }
+  }
+
+  // Helper function to calculate rotation center and apply transform
+  const applyRotation = (group: SVGElement, el: any) => {
+    if (el.angle && el.angle !== 0) {
+      const cx = el.x + (el.width || 0) / 2
+      const cy = el.y + (el.height || 0) / 2
+      const degrees = (el.angle * 180) / Math.PI
+      group.setAttribute("transform", `rotate(${degrees} ${cx} ${cy})`)
+    }
+  }
+
   // Render elements
-  elements.forEach((el: any) => {
+  sortedElements.forEach((el: any) => {
     if (el.isDeleted) return
 
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g")
+    applyRotation(group, el)
 
     if (el.type === "rectangle") {
       const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect")
@@ -246,9 +278,7 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
       rect.setAttribute("width", el.width)
       rect.setAttribute("height", el.height)
       rect.setAttribute("fill", el.backgroundColor || "transparent")
-      rect.setAttribute("stroke", el.strokeColor || "#000")
-      rect.setAttribute("stroke-width", el.strokeWidth || 1)
-      rect.setAttribute("opacity", (el.opacity || 100) / 100)
+      applyStyles(rect, el)
       group.appendChild(rect)
     } else if (el.type === "ellipse") {
       const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse")
@@ -257,9 +287,7 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
       ellipse.setAttribute("rx", el.width / 2)
       ellipse.setAttribute("ry", el.height / 2)
       ellipse.setAttribute("fill", el.backgroundColor || "transparent")
-      ellipse.setAttribute("stroke", el.strokeColor || "#000")
-      ellipse.setAttribute("stroke-width", el.strokeWidth || 1)
-      ellipse.setAttribute("opacity", (el.opacity || 100) / 100)
+      applyStyles(ellipse, el)
       group.appendChild(ellipse)
     } else if (el.type === "diamond") {
       // Diamond is a rotated square - render as polygon
@@ -274,9 +302,7 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
       ].join(" ")
       polygon.setAttribute("points", points)
       polygon.setAttribute("fill", el.backgroundColor || "transparent")
-      polygon.setAttribute("stroke", el.strokeColor || "#000")
-      polygon.setAttribute("stroke-width", el.strokeWidth || 1)
-      polygon.setAttribute("opacity", (el.opacity || 100) / 100)
+      applyStyles(polygon, el)
       group.appendChild(polygon)
     } else if (el.type === "text") {
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text")
@@ -317,11 +343,9 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
 
         path.setAttribute("d", d)
         path.setAttribute("fill", el.backgroundColor || "none")
-        path.setAttribute("stroke", el.strokeColor || "#000")
-        path.setAttribute("stroke-width", String(el.strokeWidth || 1))
-        path.setAttribute("opacity", String((el.opacity || 100) / 100))
         path.setAttribute("stroke-linecap", "round")
         path.setAttribute("stroke-linejoin", "round")
+        applyStyles(path, el)
 
         group.appendChild(path)
       }
@@ -337,9 +361,7 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
 
         path.setAttribute("d", d)
         path.setAttribute("fill", "none")
-        path.setAttribute("stroke", el.strokeColor || "#000")
-        path.setAttribute("stroke-width", String(el.strokeWidth || 1))
-        path.setAttribute("opacity", String((el.opacity || 100) / 100))
+        applyStyles(path, el)
 
         group.appendChild(path)
       }
