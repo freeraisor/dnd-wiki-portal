@@ -99,6 +99,8 @@ function createFileNode(currentSlug: FullSlug, node: FileTrieNode): HTMLLIElemen
     a.textContent = node.displayName
     a.appendChild(document.createTextNode(" "))
     a.appendChild(mapBadge)
+    a.target = "_blank"
+    a.rel = "noopener noreferrer"
   } else {
     a.textContent = node.displayName
   }

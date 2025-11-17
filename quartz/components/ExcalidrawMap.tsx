@@ -41,14 +41,27 @@ export default (() => {
     /* Hide everything for Excalidraw maps except the map itself */
     body[data-slug$=".excalidraw"] .left.sidebar,
     body[data-slug$=".excalidraw"] .right.sidebar,
-    body[data-slug$=".excalidraw"] .page-header,
     body[data-slug$=".excalidraw"] .page-footer,
     body[data-slug$=".excalidraw"] footer {
       display: none !important;
     }
 
-    /* Hide article content but not the article itself (map is inside) */
-    body[data-slug$=".excalidraw"] article > *:not(.excalidraw-map-container) {
+    /* Hide article content entirely */
+    body[data-slug$=".excalidraw"] article {
+      display: none !important;
+    }
+
+    /* Only keep the Excalidraw container within the header area */
+    body[data-slug$=".excalidraw"] .page-header {
+      padding: 0;
+      margin: 0;
+    }
+
+    body[data-slug$=".excalidraw"] .page-header .popover-hint {
+      padding: 0;
+    }
+
+    body[data-slug$=".excalidraw"] .page-header .popover-hint > *:not(.excalidraw-map-container) {
       display: none !important;
     }
 
