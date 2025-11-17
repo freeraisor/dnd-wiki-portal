@@ -81,6 +81,69 @@ function extractPlainJson(markdown: string): ExcalidrawData | null {
 }
 
 /**
+ * Extract embedded files from markdown
+ * Format: fileId: [[filename]]
+ */
+function extractEmbeddedFiles(markdown: string, baseDir: string): Record<string, any> {
+  const files: Record<string, any> = {}
+
+  // Find ## Embedded Files section
+  const embeddedFilesRegex = /## Embedded Files\s*\n([\s\S]*?)(?=\n##|\n%%|$)/
+  const match = markdown.match(embeddedFilesRegex)
+
+  if (!match) return files
+
+  const embeddedSection = match[1]
+  // Parse lines like: 367320ff60f16efa87ee5734a2ef5a86c4fd9e33: [[5.png]]
+  const lineRegex = /([a-f0-9]+):\s*\[\[([^\]]+)\]\]/g
+  let lineMatch
+
+  while ((lineMatch = lineRegex.exec(embeddedSection)) !== null) {
+    const fileId = lineMatch[1]
+    const filename = lineMatch[2]
+
+    // Try to find and read the file
+    const possiblePaths = [
+      path.join(baseDir, filename),
+      path.join(baseDir, "..", filename),
+      path.join(baseDir, "assets", filename),
+      path.join(baseDir, "attachments", filename),
+    ]
+
+    for (const filePath of possiblePaths) {
+      if (fs.existsSync(filePath)) {
+        try {
+          const fileBuffer = fs.readFileSync(filePath)
+          const base64 = fileBuffer.toString("base64")
+
+          // Determine MIME type
+          const ext = path.extname(filename).toLowerCase()
+          let mimeType = "image/png"
+          if (ext === ".jpg" || ext === ".jpeg") mimeType = "image/jpeg"
+          else if (ext === ".gif") mimeType = "image/gif"
+          else if (ext === ".svg") mimeType = "image/svg+xml"
+          else if (ext === ".webp") mimeType = "image/webp"
+
+          files[fileId] = {
+            mimeType,
+            id: fileId,
+            dataURL: `data:${mimeType};base64,${base64}`,
+            created: Date.now(),
+          }
+
+          console.log(`Loaded embedded file: ${filename} as ${fileId}`)
+          break
+        } catch (e) {
+          console.error(`Failed to read embedded file ${filename}:`, e)
+        }
+      }
+    }
+  }
+
+  return files
+}
+
+/**
  * Transformer plugin for Excalidraw drawings
  * Parses .excalidraw.md files and extracts drawing data
  */
@@ -121,6 +184,19 @@ export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> =
 
               // Store data for component to use
               if (excalidrawData) {
+                // Extract embedded files if any
+                const baseDir = path.dirname(filePath)
+                const embeddedFiles = extractEmbeddedFiles(rawMarkdown, baseDir)
+
+                // Merge embedded files with existing files
+                if (Object.keys(embeddedFiles).length > 0) {
+                  excalidrawData.files = {
+                    ...excalidrawData.files,
+                    ...embeddedFiles,
+                  }
+                  console.log(`Added ${Object.keys(embeddedFiles).length} embedded files`)
+                }
+
                 file.data.excalidraw = excalidrawData
 
                 // Mark this as an Excalidraw map type

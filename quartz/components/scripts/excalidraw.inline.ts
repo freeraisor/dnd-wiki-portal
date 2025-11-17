@@ -1,4 +1,4 @@
-// Excalidraw Map Viewer with official library support
+// Excalidraw renderer - FULL support without CDN
 interface ExcalidrawElement {
   type: string
   x: number
@@ -6,6 +6,26 @@ interface ExcalidrawElement {
   width?: number
   height?: number
   link?: string
+  text?: string
+  fontSize?: number
+  fontFamily?: number
+  textAlign?: string
+  verticalAlign?: string
+  strokeColor?: string
+  backgroundColor?: string
+  fillStyle?: string
+  strokeWidth?: number
+  strokeStyle?: string
+  roughness?: number
+  opacity?: number
+  angle?: number
+  points?: number[][]
+  fileId?: string
+  isDeleted?: boolean
+  boundElements?: any[]
+  updated?: number
+  locked?: boolean
+  customData?: any
   [key: string]: any
 }
 
@@ -15,154 +35,52 @@ interface ExcalidrawData {
   source: string
   elements: ExcalidrawElement[]
   appState: any
-  files?: Record<string, any>
+  files?: Record<
+    string,
+    {
+      mimeType: string
+      id: string
+      dataURL: string
+      created: number
+    }
+  >
 }
 
-// Initialize Excalidraw maps
-async function initExcalidrawMaps() {
-  const mapContainers = document.querySelectorAll(".excalidraw-map-container")
+// Initialize maps
+function initExcalidrawMaps() {
+  const containers = document.querySelectorAll(".excalidraw-map-container")
 
-  for (const container of mapContainers) {
+  containers.forEach((container) => {
     try {
       const dataAttr = container.getAttribute("data-excalidraw")
-      if (!dataAttr) continue
+      if (!dataAttr) return
 
       const data: ExcalidrawData = JSON.parse(dataAttr)
       const canvas = container.querySelector(".excalidraw-map-canvas")
-      if (!canvas) continue
+      if (!canvas) return
 
-      // Try to load official Excalidraw library
-      await renderExcalidrawMap(canvas as HTMLElement, data, container as HTMLElement)
+      renderExcalidraw(canvas as HTMLElement, data, container as HTMLElement)
     } catch (error: any) {
       console.error("Error rendering Excalidraw:", error)
       const canvas = container.querySelector(".excalidraw-map-canvas")
       if (canvas) {
         canvas.innerHTML = `
           <div class="excalidraw-error">
-            <p>⚠️ Error loading map</p>
-            <p class="error-details">${error.message}</p>
+            <p>⚠️ Error: ${error.message}</p>
           </div>
         `
       }
     }
-  }
+  })
 }
 
-// Render Excalidraw map
-async function renderExcalidrawMap(
+// Main render function
+function renderExcalidraw(
   container: HTMLElement,
   data: ExcalidrawData,
   mapContainer: HTMLElement,
 ) {
-  try {
-    // Try to use official Excalidraw library
-    const ExcalidrawLib = await import("https://esm.sh/@excalidraw/excalidraw@0.18.0")
-    await renderWithOfficial(container, data, mapContainer, ExcalidrawLib.exportToSvg)
-  } catch (error) {
-    console.warn("Failed to load official Excalidraw, using fallback:", error)
-    // Fallback to custom renderer
-    renderExcalidrawFallback(container, data, mapContainer)
-  }
-}
-
-// Render with official library
-async function renderWithOfficial(
-  container: HTMLElement,
-  data: ExcalidrawData,
-  mapContainer: HTMLElement,
-  exportToSvg: any,
-) {
-  // Process wiki-links in elements
-  const processedElements = processWikiLinks(data.elements)
-
-  // Generate SVG using official library
-  const svg = await exportToSvg({
-    elements: processedElements,
-    appState: {
-      ...data.appState,
-      exportBackground: true,
-      exportWithDarkMode: false,
-      viewBackgroundColor: "#ffffff",
-    },
-    files: data.files || {},
-  })
-
-  // Configure SVG
-  svg.setAttribute("width", "100%")
-  svg.setAttribute("height", "100%")
-
-  // Add to container
-  container.innerHTML = ""
-  container.appendChild(svg)
-  container.style.cursor = "grab"
-
-  // Get viewBox for pan/zoom
-  const vb = svg.getAttribute("viewBox")?.split(" ").map(Number) || [0, 0, 800, 600]
-  const initialViewBox = { x: vb[0], y: vb[1], width: vb[2], height: vb[3] }
-
-  // Add pan/zoom
-  const panZoom = new PanZoom(svg, container, initialViewBox)
-  addControls(mapContainer, panZoom)
-
-  // Make links clickable
-  processClickableLinks(svg)
-}
-
-// Process wiki-links and convert them to URLs
-function processWikiLinks(elements: ExcalidrawElement[]): ExcalidrawElement[] {
-  return elements.map((el) => {
-    if (el.link) {
-      // Handle wiki-links: [[Page Name]] or [[Page Name|Alias]]
-      const wikiLinkMatch = el.link.match(/^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/)
-      if (wikiLinkMatch) {
-        const pageName = wikiLinkMatch[1].trim()
-        const urlPath = "/" + pageName.replace(/ /g, "-").toLowerCase()
-        return { ...el, link: urlPath }
-      }
-
-      // Handle markdown links: [text](url)
-      const mdLinkMatch = el.link.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-      if (mdLinkMatch) {
-        return { ...el, link: mdLinkMatch[2] }
-      }
-    }
-    return el
-  })
-}
-
-// Make links clickable in SVG
-function processClickableLinks(svg: SVGElement) {
-  const links = svg.querySelectorAll("a, text[href]")
-  links.forEach((el) => {
-    el.setAttribute("cursor", "pointer")
-    el.setAttribute("style", "cursor: pointer;")
-  })
-}
-
-// Add control buttons
-function addControls(mapContainer: HTMLElement, panZoom: PanZoom) {
-  const controls = document.createElement("div")
-  controls.className = "excalidraw-controls"
-  controls.innerHTML = `
-    <button class="excalidraw-btn zoom-in" title="Zoom In">+</button>
-    <button class="excalidraw-btn zoom-out" title="Zoom Out">−</button>
-    <button class="excalidraw-btn reset" title="Reset View">⟲</button>
-  `
-
-  controls.querySelector(".zoom-in")?.addEventListener("click", () => panZoom.zoom(0.8))
-  controls.querySelector(".zoom-out")?.addEventListener("click", () => panZoom.zoom(1.2))
-  controls.querySelector(".reset")?.addEventListener("click", () => panZoom.resetView())
-
-  mapContainer.appendChild(controls)
-}
-
-// Fallback custom renderer
-function renderExcalidrawFallback(
-  container: HTMLElement,
-  data: ExcalidrawData,
-  mapContainer: HTMLElement,
-) {
-  const { elements = [] } = data
+  const { elements = [], files = {} } = data
 
   // Calculate bounds
   let minX = Infinity,
@@ -171,12 +89,11 @@ function renderExcalidrawFallback(
     maxY = -Infinity
 
   elements.forEach((el) => {
-    if (el.x !== undefined && el.y !== undefined) {
-      minX = Math.min(minX, el.x)
-      minY = Math.min(minY, el.y)
-      maxX = Math.max(maxX, el.x + (el.width || 0))
-      maxY = Math.max(maxY, el.y + (el.height || 0))
-    }
+    if (el.isDeleted) return
+    minX = Math.min(minX, el.x)
+    minY = Math.min(minY, el.y)
+    maxX = Math.max(maxX, el.x + (el.width || 0))
+    maxY = Math.max(maxY, el.y + (el.height || 0))
   })
 
   const width = maxX - minX || 800
@@ -198,15 +115,95 @@ function renderExcalidrawFallback(
     "viewBox",
     `${initialViewBox.x} ${initialViewBox.y} ${initialViewBox.width} ${initialViewBox.height}`,
   )
+  svg.setAttribute("xmlns", "http://www.w3.org/2000/svg")
 
-  // Create defs for patterns
+  // Create defs for patterns and filters
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs")
   svg.appendChild(defs)
 
-  // Process and render elements
-  const processedElements = processWikiLinks(elements)
+  // Helper: create fill patterns
+  const patternCounter = { value: 0 }
+  const createPattern = (fillStyle: string, color: string) => {
+    const id = `pattern-${patternCounter.value++}`
+    const pattern = document.createElementNS("http://www.w3.org/2000/svg", "pattern")
+    pattern.setAttribute("id", id)
+    pattern.setAttribute("patternUnits", "userSpaceOnUse")
+    pattern.setAttribute("width", "8")
+    pattern.setAttribute("height", "8")
 
-  processedElements.forEach((el) => {
+    if (fillStyle === "hachure") {
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line")
+      line.setAttribute("x1", "0")
+      line.setAttribute("y1", "0")
+      line.setAttribute("x2", "8")
+      line.setAttribute("y2", "8")
+      line.setAttribute("stroke", color)
+      line.setAttribute("stroke-width", "1")
+      pattern.appendChild(line)
+    } else if (fillStyle === "cross-hatch") {
+      const line1 = document.createElementNS("http://www.w3.org/2000/svg", "line")
+      line1.setAttribute("x1", "0")
+      line1.setAttribute("y1", "0")
+      line1.setAttribute("x2", "8")
+      line1.setAttribute("y2", "8")
+      line1.setAttribute("stroke", color)
+      line1.setAttribute("stroke-width", "1")
+      pattern.appendChild(line1)
+
+      const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line")
+      line2.setAttribute("x1", "0")
+      line2.setAttribute("y1", "8")
+      line2.setAttribute("x2", "8")
+      line2.setAttribute("y2", "0")
+      line2.setAttribute("stroke", color)
+      line2.setAttribute("stroke-width", "1")
+      pattern.appendChild(line2)
+    } else if (fillStyle === "dots") {
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle")
+      circle.setAttribute("cx", "4")
+      circle.setAttribute("cy", "4")
+      circle.setAttribute("r", "1")
+      circle.setAttribute("fill", color)
+      pattern.appendChild(circle)
+    }
+
+    defs.appendChild(pattern)
+    return `url(#${id})`
+  }
+
+  // Helper: get fill
+  const getFill = (el: ExcalidrawElement) => {
+    if (!el.backgroundColor || el.backgroundColor === "transparent") {
+      return "transparent"
+    }
+    if (el.fillStyle === "solid" || !el.fillStyle) {
+      return el.backgroundColor
+    }
+    return createPattern(el.fillStyle, el.backgroundColor)
+  }
+
+  // Helper: resolve wiki links
+  const resolveLink = (link: string) => {
+    const wikiMatch = link.match(/^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/)
+    if (wikiMatch) {
+      return "/" + wikiMatch[1].trim().replace(/ /g, "-").toLowerCase()
+    }
+    const mdMatch = link.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+    if (mdMatch) {
+      return mdMatch[2]
+    }
+    return link
+  }
+
+  // Sort elements by z-order
+  const sortedElements = [...elements].sort((a, b) => {
+    const indexA = a.index || "a0"
+    const indexB = b.index || "a0"
+    return indexA.localeCompare(indexB)
+  })
+
+  // Render each element
+  sortedElements.forEach((el) => {
     if (el.isDeleted) return
 
     const group = document.createElementNS("http://www.w3.org/2000/svg", "g")
@@ -219,102 +216,208 @@ function renderExcalidrawFallback(
       group.setAttribute("transform", `rotate(${degrees} ${cx} ${cy})`)
     }
 
+    // Apply opacity to group
+    if (el.opacity && el.opacity < 100) {
+      group.setAttribute("opacity", String(el.opacity / 100))
+    }
+
     // Render by type
     if (el.type === "rectangle") {
       const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect")
       rect.setAttribute("x", String(el.x))
       rect.setAttribute("y", String(el.y))
-      rect.setAttribute("width", String(el.width))
-      rect.setAttribute("height", String(el.height))
-      rect.setAttribute("fill", el.backgroundColor || "transparent")
+      rect.setAttribute("width", String(el.width || 0))
+      rect.setAttribute("height", String(el.height || 0))
+      rect.setAttribute("fill", getFill(el))
       rect.setAttribute("stroke", el.strokeColor || "#000")
       rect.setAttribute("stroke-width", String(el.strokeWidth || 1))
-      rect.setAttribute("opacity", String((el.opacity || 100) / 100))
+
+      if (el.strokeStyle === "dashed") {
+        rect.setAttribute("stroke-dasharray", "8,8")
+      } else if (el.strokeStyle === "dotted") {
+        rect.setAttribute("stroke-dasharray", "2,4")
+      }
+
+      if (el.roundness) {
+        const radius =
+          typeof el.roundness === "number"
+            ? el.roundness
+            : Math.min(el.width || 0, el.height || 0) * 0.1
+        rect.setAttribute("rx", String(radius))
+        rect.setAttribute("ry", String(radius))
+      }
+
       group.appendChild(rect)
     } else if (el.type === "ellipse") {
       const ellipse = document.createElementNS("http://www.w3.org/2000/svg", "ellipse")
-      ellipse.setAttribute("cx", String(el.x + el.width / 2))
-      ellipse.setAttribute("cy", String(el.y + el.height / 2))
-      ellipse.setAttribute("rx", String(el.width / 2))
-      ellipse.setAttribute("ry", String(el.height / 2))
-      ellipse.setAttribute("fill", el.backgroundColor || "transparent")
+      ellipse.setAttribute("cx", String(el.x + (el.width || 0) / 2))
+      ellipse.setAttribute("cy", String(el.y + (el.height || 0) / 2))
+      ellipse.setAttribute("rx", String((el.width || 0) / 2))
+      ellipse.setAttribute("ry", String((el.height || 0) / 2))
+      ellipse.setAttribute("fill", getFill(el))
       ellipse.setAttribute("stroke", el.strokeColor || "#000")
       ellipse.setAttribute("stroke-width", String(el.strokeWidth || 1))
-      ellipse.setAttribute("opacity", String((el.opacity || 100) / 100))
+
+      if (el.strokeStyle === "dashed") {
+        ellipse.setAttribute("stroke-dasharray", "8,8")
+      } else if (el.strokeStyle === "dotted") {
+        ellipse.setAttribute("stroke-dasharray", "2,4")
+      }
+
       group.appendChild(ellipse)
+    } else if (el.type === "diamond") {
+      const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon")
+      const cx = el.x + (el.width || 0) / 2
+      const cy = el.y + (el.height || 0) / 2
+      const points = [
+        `${cx},${el.y}`,
+        `${el.x + (el.width || 0)},${cy}`,
+        `${cx},${el.y + (el.height || 0)}`,
+        `${el.x},${cy}`,
+      ].join(" ")
+      polygon.setAttribute("points", points)
+      polygon.setAttribute("fill", getFill(el))
+      polygon.setAttribute("stroke", el.strokeColor || "#000")
+      polygon.setAttribute("stroke-width", String(el.strokeWidth || 1))
+      group.appendChild(polygon)
     } else if (el.type === "text") {
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text")
       text.setAttribute("x", String(el.x))
       text.setAttribute("y", String(el.y + (el.fontSize || 20)))
       text.setAttribute("font-size", String(el.fontSize || 20))
       text.setAttribute("fill", el.strokeColor || "#000")
+
+      // Handle text alignment
+      if (el.textAlign === "center") {
+        text.setAttribute("x", String(el.x + (el.width || 0) / 2))
+        text.setAttribute("text-anchor", "middle")
+      } else if (el.textAlign === "right") {
+        text.setAttribute("x", String(el.x + (el.width || 0)))
+        text.setAttribute("text-anchor", "end")
+      }
+
       text.textContent = el.text || ""
 
+      // Handle links
       if (el.link) {
+        const href = resolveLink(el.link)
         const link = document.createElementNS("http://www.w3.org/2000/svg", "a")
-        link.setAttribute("href", el.link)
+        link.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", href)
+        link.setAttribute("href", href)
         link.setAttribute("style", "cursor: pointer;")
         link.appendChild(text)
         group.appendChild(link)
       } else {
         group.appendChild(text)
       }
-    } else if (el.type === "freedraw" && el.points && el.points.length > 0) {
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
-      let d = `M ${el.x + el.points[0][0]} ${el.y + el.points[0][1]}`
-      for (let i = 1; i < el.points.length; i++) {
-        d += ` L ${el.x + el.points[i][0]} ${el.y + el.points[i][1]}`
+    } else if (el.type === "freedraw") {
+      if (el.points && el.points.length > 0) {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
+        let d = `M ${el.x + el.points[0][0]} ${el.y + el.points[0][1]}`
+        for (let i = 1; i < el.points.length; i++) {
+          d += ` L ${el.x + el.points[i][0]} ${el.y + el.points[i][1]}`
+        }
+        if (el.backgroundColor && el.backgroundColor !== "transparent") {
+          d += " Z"
+        }
+        path.setAttribute("d", d)
+        path.setAttribute(
+          "fill",
+          el.backgroundColor && el.backgroundColor !== "transparent"
+            ? getFill(el)
+            : "none",
+        )
+        path.setAttribute("stroke", el.strokeColor || "#000")
+        path.setAttribute("stroke-width", String(el.strokeWidth || 1))
+        path.setAttribute("stroke-linecap", "round")
+        path.setAttribute("stroke-linejoin", "round")
+        group.appendChild(path)
       }
-      if (el.backgroundColor && el.backgroundColor !== "transparent") {
-        d += " Z"
+    } else if (el.type === "line" || el.type === "arrow") {
+      if (el.points && el.points.length > 0) {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
+        let d = `M ${el.x + el.points[0][0]} ${el.y + el.points[0][1]}`
+        for (let i = 1; i < el.points.length; i++) {
+          d += ` L ${el.x + el.points[i][0]} ${el.y + el.points[i][1]}`
+        }
+        path.setAttribute("d", d)
+        path.setAttribute("fill", "none")
+        path.setAttribute("stroke", el.strokeColor || "#000")
+        path.setAttribute("stroke-width", String(el.strokeWidth || 1))
+
+        if (el.strokeStyle === "dashed") {
+          path.setAttribute("stroke-dasharray", "8,8")
+        } else if (el.strokeStyle === "dotted") {
+          path.setAttribute("stroke-dasharray", "2,4")
+        }
+
+        // Add arrowhead for arrows
+        if (el.type === "arrow" && el.points.length >= 2) {
+          const markerId = `arrowhead-${patternCounter.value++}`
+          const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker")
+          marker.setAttribute("id", markerId)
+          marker.setAttribute("markerWidth", "10")
+          marker.setAttribute("markerHeight", "10")
+          marker.setAttribute("refX", "9")
+          marker.setAttribute("refY", "3")
+          marker.setAttribute("orient", "auto")
+          marker.setAttribute("markerUnits", "strokeWidth")
+
+          const arrowPath = document.createElementNS("http://www.w3.org/2000/svg", "path")
+          arrowPath.setAttribute("d", "M0,0 L0,6 L9,3 z")
+          arrowPath.setAttribute("fill", el.strokeColor || "#000")
+          marker.appendChild(arrowPath)
+
+          defs.appendChild(marker)
+          path.setAttribute("marker-end", `url(#${markerId})`)
+        }
+
+        group.appendChild(path)
       }
-      path.setAttribute("d", d)
-      path.setAttribute(
-        "fill",
-        el.backgroundColor && el.backgroundColor !== "transparent" ? el.backgroundColor : "none",
-      )
-      path.setAttribute("stroke", el.strokeColor || "#000")
-      path.setAttribute("stroke-width", String(el.strokeWidth || 1))
-      path.setAttribute("opacity", String((el.opacity || 100) / 100))
-      group.appendChild(path)
-    } else if ((el.type === "line" || el.type === "arrow") && el.points && el.points.length > 0) {
-      const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
-      let d = `M ${el.x + el.points[0][0]} ${el.y + el.points[0][1]}`
-      for (let i = 1; i < el.points.length; i++) {
-        d += ` L ${el.x + el.points[i][0]} ${el.y + el.points[i][1]}`
-      }
-      path.setAttribute("d", d)
-      path.setAttribute("fill", "none")
-      path.setAttribute("stroke", el.strokeColor || "#000")
-      path.setAttribute("stroke-width", String(el.strokeWidth || 1))
-      path.setAttribute("opacity", String((el.opacity || 100) / 100))
-      group.appendChild(path)
     } else if (el.type === "image" && el.fileId) {
-      const imageData = data.files?.[el.fileId]
-      if (imageData && imageData.dataURL) {
+      const fileData = files[el.fileId]
+      if (fileData && fileData.dataURL) {
         const image = document.createElementNS("http://www.w3.org/2000/svg", "image")
         image.setAttribute("x", String(el.x))
         image.setAttribute("y", String(el.y))
-        image.setAttribute("width", String(el.width))
-        image.setAttribute("height", String(el.height))
-        image.setAttribute("href", imageData.dataURL)
-        image.setAttribute("opacity", String((el.opacity || 100) / 100))
+        image.setAttribute("width", String(el.width || 0))
+        image.setAttribute("height", String(el.height || 0))
+        image.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", fileData.dataURL)
+        image.setAttribute("href", fileData.dataURL)
         group.appendChild(image)
+      } else {
+        console.warn(`Image file not found: ${el.fileId}`)
       }
     }
 
     svg.appendChild(group)
   })
 
+  // Add to container
   container.innerHTML = ""
   container.appendChild(svg)
   container.style.cursor = "grab"
 
+  // Add pan/zoom
   const panZoom = new PanZoom(svg, container, initialViewBox)
-  addControls(mapContainer, panZoom)
+
+  // Add controls
+  const controls = document.createElement("div")
+  controls.className = "excalidraw-controls"
+  controls.innerHTML = `
+    <button class="excalidraw-btn zoom-in" title="Zoom In">+</button>
+    <button class="excalidraw-btn zoom-out" title="Zoom Out">−</button>
+    <button class="excalidraw-btn reset" title="Reset View">⟲</button>
+  `
+
+  controls.querySelector(".zoom-in")?.addEventListener("click", () => panZoom.zoom(0.8))
+  controls.querySelector(".zoom-out")?.addEventListener("click", () => panZoom.zoom(1.2))
+  controls.querySelector(".reset")?.addEventListener("click", () => panZoom.resetView())
+
+  mapContainer.appendChild(controls)
 }
 
-// Pan and Zoom class
+// Pan and Zoom
 class PanZoom {
   private svg: SVGElement
   private container: HTMLElement
