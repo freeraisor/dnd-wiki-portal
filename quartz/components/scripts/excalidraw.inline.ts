@@ -555,28 +555,35 @@ class PanZoom {
   }
 
   public zoom(factor: number, point?: { x: number; y: number }) {
-    const oldScale = this.scale
-    this.scale *= factor
+    const targetScale = this.scale * factor
+    const clampedScale = Math.min(Math.max(targetScale, 0.1), 10)
 
-    if (this.scale < 0.1) {
-      this.scale = 0.1
-      return
-    }
-    if (this.scale > 10) {
-      this.scale = 10
+    if (clampedScale === this.scale) {
       return
     }
 
-    if (point) {
-      const scaleChange = factor - 1
-      const viewX = this.viewBox.x + (point.x / this.container.clientWidth) * this.viewBox.width
-      const viewY = this.viewBox.y + (point.y / this.container.clientHeight) * this.viewBox.height
-      this.viewBox.x += viewX * scaleChange
-      this.viewBox.y += viewY * scaleChange
+    const appliedFactor = clampedScale / this.scale
+    this.scale = clampedScale
+
+    const zoomPoint = point ?? {
+      x: this.container.clientWidth / 2,
+      y: this.container.clientHeight / 2,
     }
 
-    this.viewBox.width /= factor
-    this.viewBox.height /= factor
+    const relativeX = zoomPoint.x / this.container.clientWidth
+    const relativeY = zoomPoint.y / this.container.clientHeight
+
+    const prevWidth = this.viewBox.width
+    const prevHeight = this.viewBox.height
+
+    this.viewBox.width /= appliedFactor
+    this.viewBox.height /= appliedFactor
+
+    const widthDiff = prevWidth - this.viewBox.width
+    const heightDiff = prevHeight - this.viewBox.height
+
+    this.viewBox.x += widthDiff * relativeX
+    this.viewBox.y += heightDiff * relativeY
     this.updateViewBox()
   }
 
