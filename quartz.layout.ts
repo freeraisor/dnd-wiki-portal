@@ -26,6 +26,10 @@ export const defaultContentPageLayout: PageLayout = {
     Component.ArticleTitle(),
     Component.ContentMeta(),
     Component.TagList(),
+    Component.ConditionalRender({
+      component: Component.ExcalidrawMap(),
+      condition: (page) => (page.fileData.frontmatter as any)?.["excalidraw-plugin"] === "parsed",
+    }),
   ],
   left: [
     Component.PageTitle(),
