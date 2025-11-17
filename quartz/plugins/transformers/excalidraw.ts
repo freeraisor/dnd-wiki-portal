@@ -1,17 +1,12 @@
 import { QuartzTransformerPlugin } from "../types"
 import { Root } from "mdast"
-import { visit } from "unist-util-visit"
-import { Code } from "mdast"
 import LZString from "lz-string"
 import fs from "fs"
 import path from "path"
 import {
-  FilePath,
   FullSlug,
   TransformOptions,
   transformLink,
-  slugifyFilePath,
-  simplifySlug,
 } from "../../util/path"
 
 export interface ExcalidrawData {
@@ -24,8 +19,6 @@ export interface ExcalidrawData {
 }
 
 export interface Options {}
-
-const defaultOptions: Options = {}
 
 /**
  * Decompress Excalidraw data
@@ -114,27 +107,74 @@ function resolveWikilink(
 /**
  * Find file in content directory using Quartz's resolution logic
  */
+function sanitizeEmbeddedTarget(target: string): string {
+  const [beforeAlias] = target.split("|")
+  return beforeAlias.trim()
+}
+
+function isWithinContentRoot(contentRoot: string, candidate: string): boolean {
+  const relative = path.relative(contentRoot, candidate)
+  return relative && !relative.startsWith("..") && !path.isAbsolute(relative)
+}
+
+function findFileByBasename(
+  basename: string,
+  contentRoot: string,
+  seenDirs = new Set<string>(),
+): string | null {
+  const stack: string[] = [contentRoot]
+
+  while (stack.length > 0) {
+    const currentDir = stack.pop()!
+    if (seenDirs.has(currentDir)) {
+      continue
+    }
+    seenDirs.add(currentDir)
+
+    const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+    for (const entry of entries) {
+      const entryPath = path.join(currentDir, entry.name)
+      if (entry.isDirectory()) {
+        stack.push(entryPath)
+      } else if (entry.isFile() && entry.name === basename) {
+        return entryPath
+      }
+    }
+  }
+
+  return null
+}
+
 function findFileInContent(
   filename: string,
   contentRoot: string,
   currentFileDir: string,
 ): string | null {
-  // Try multiple possible locations
-  const possiblePaths = [
-    path.join(currentFileDir, filename),
-    path.join(currentFileDir, "..", filename),
-    path.join(contentRoot, filename),
-    path.join(contentRoot, "assets", filename),
-    path.join(contentRoot, "attachments", filename),
-  ]
+  const cleaned = sanitizeEmbeddedTarget(filename).replace(/\\/g, "/")
 
-  for (const filePath of possiblePaths) {
-    if (fs.existsSync(filePath)) {
-      return filePath
+  if (!cleaned) {
+    return null
+  }
+
+  const candidatePaths = new Set<string>()
+  const normalizedFromCurrent = path.resolve(currentFileDir, cleaned)
+  candidatePaths.add(normalizedFromCurrent)
+  candidatePaths.add(path.resolve(contentRoot, cleaned))
+
+  if (!cleaned.includes("/")) {
+    candidatePaths.add(path.resolve(currentFileDir, "..", cleaned))
+    candidatePaths.add(path.resolve(contentRoot, "assets", cleaned))
+    candidatePaths.add(path.resolve(contentRoot, "attachments", cleaned))
+  }
+
+  for (const candidate of candidatePaths) {
+    if (isWithinContentRoot(contentRoot, candidate) && fs.existsSync(candidate)) {
+      return candidate
     }
   }
 
-  return null
+  const byBasename = findFileByBasename(path.basename(cleaned), contentRoot)
+  return byBasename && fs.existsSync(byBasename) ? byBasename : null
 }
 
 /**
@@ -143,10 +183,8 @@ function findFileInContent(
  */
 function extractEmbeddedFiles(
   markdown: string,
-  currentSlug: FullSlug,
   filePath: string,
   contentRoot: string,
-  transformOptions: TransformOptions,
 ): Record<string, any> {
   const files: Record<string, any> = {}
 
@@ -207,16 +245,15 @@ function extractEmbeddedFiles(
  * Parses .excalidraw.md files and extracts drawing data
  */
 export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> = (
-  userOpts,
+  _userOpts,
 ) => {
-  const opts = { ...defaultOptions, ...userOpts }
 
   return {
     name: "Excalidraw",
     markdownPlugins(ctx) {
       return [
         () => {
-          return (tree: Root, file) => {
+          return (_tree: Root, file) => {
             const frontmatter = file.data.frontmatter as any
 
             // Check if this is an Excalidraw file
@@ -253,13 +290,7 @@ export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> =
                 }
 
                 // Extract embedded files if any
-                const embeddedFiles = extractEmbeddedFiles(
-                  rawMarkdown,
-                  currentSlug,
-                  filePath,
-                  contentRoot,
-                  transformOptions,
-                )
+                const embeddedFiles = extractEmbeddedFiles(rawMarkdown, filePath, contentRoot)
 
                 // Merge embedded files with existing files
                 if (Object.keys(embeddedFiles).length > 0) {

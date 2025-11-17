@@ -5,7 +5,7 @@ tags: [dungeon, location, treasure]
 
 # Treasure Room
 
-A chamber filled with ancient relics and coins scattered across the floor.
+A chamber filled with ancient relics and coins scattered across the floor. Mark any changes you make on the [[map.excalidraw|Dungeon Map]] so other parties can keep track of hazards.
 
 ## Description
 
@@ -25,4 +25,4 @@ This 25-foot by 20-foot room glitters with gold and jewels. However, something s
 ## Exits
 
 - **West**: Back to [[entrance-hall]]
-- **Return**: [[example-dungeon-map]]
+- **Return**: [[map.excalidraw|Dungeon Map]]
