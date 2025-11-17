@@ -182,19 +182,6 @@ function renderExcalidraw(
     return createPattern(el.fillStyle, el.backgroundColor)
   }
 
-  // Helper: resolve wiki links
-  const resolveLink = (link: string) => {
-    const wikiMatch = link.match(/^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/)
-    if (wikiMatch) {
-      return "/" + wikiMatch[1].trim().replace(/ /g, "-").toLowerCase()
-    }
-    const mdMatch = link.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
-    if (mdMatch) {
-      return mdMatch[2]
-    }
-    return link
-  }
-
   // Sort elements by z-order
   const sortedElements = [...elements].sort((a, b) => {
     const indexA = a.index || "a0"
@@ -298,12 +285,11 @@ function renderExcalidraw(
 
       text.textContent = el.text || ""
 
-      // Handle links
+      // Handle links (already resolved at build time)
       if (el.link) {
-        const href = resolveLink(el.link)
         const link = document.createElementNS("http://www.w3.org/2000/svg", "a")
-        link.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", href)
-        link.setAttribute("href", href)
+        link.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", el.link)
+        link.setAttribute("href", el.link)
         link.setAttribute("style", "cursor: pointer;")
         link.appendChild(text)
         group.appendChild(link)

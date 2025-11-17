@@ -5,6 +5,14 @@ import { Code } from "mdast"
 import LZString from "lz-string"
 import fs from "fs"
 import path from "path"
+import {
+  FilePath,
+  FullSlug,
+  TransformOptions,
+  transformLink,
+  slugifyFilePath,
+  simplifySlug,
+} from "../../util/path"
 
 export interface ExcalidrawData {
   type: string
@@ -81,10 +89,65 @@ function extractPlainJson(markdown: string): ExcalidrawData | null {
 }
 
 /**
+ * Resolve wikilink to actual slug using Quartz's transformLink
+ */
+function resolveWikilink(
+  wikilink: string,
+  currentSlug: FullSlug,
+  transformOptions: TransformOptions,
+): string {
+  // Extract the page name from [[Page Name]] or [[Page Name|Alias]]
+  const match = wikilink.match(/^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]$/)
+  if (!match) return wikilink
+
+  const pageName = match[1].trim()
+
+  // Use Quartz's transformLink to properly resolve the link
+  try {
+    return transformLink(currentSlug, pageName, transformOptions)
+  } catch (e) {
+    console.error(`Failed to resolve wikilink ${wikilink}:`, e)
+    return wikilink
+  }
+}
+
+/**
+ * Find file in content directory using Quartz's resolution logic
+ */
+function findFileInContent(
+  filename: string,
+  contentRoot: string,
+  currentFileDir: string,
+): string | null {
+  // Try multiple possible locations
+  const possiblePaths = [
+    path.join(currentFileDir, filename),
+    path.join(currentFileDir, "..", filename),
+    path.join(contentRoot, filename),
+    path.join(contentRoot, "assets", filename),
+    path.join(contentRoot, "attachments", filename),
+  ]
+
+  for (const filePath of possiblePaths) {
+    if (fs.existsSync(filePath)) {
+      return filePath
+    }
+  }
+
+  return null
+}
+
+/**
  * Extract embedded files from markdown
  * Format: fileId: [[filename]]
  */
-function extractEmbeddedFiles(markdown: string, baseDir: string): Record<string, any> {
+function extractEmbeddedFiles(
+  markdown: string,
+  currentSlug: FullSlug,
+  filePath: string,
+  contentRoot: string,
+  transformOptions: TransformOptions,
+): Record<string, any> {
   const files: Record<string, any> = {}
 
   // Find ## Embedded Files section
@@ -98,45 +161,41 @@ function extractEmbeddedFiles(markdown: string, baseDir: string): Record<string,
   const lineRegex = /([a-f0-9]+):\s*\[\[([^\]]+)\]\]/g
   let lineMatch
 
+  const baseDir = path.dirname(filePath)
+
   while ((lineMatch = lineRegex.exec(embeddedSection)) !== null) {
     const fileId = lineMatch[1]
     const filename = lineMatch[2]
 
-    // Try to find and read the file
-    const possiblePaths = [
-      path.join(baseDir, filename),
-      path.join(baseDir, "..", filename),
-      path.join(baseDir, "assets", filename),
-      path.join(baseDir, "attachments", filename),
-    ]
+    // Find the file using proper resolution
+    const resolvedPath = findFileInContent(filename, contentRoot, baseDir)
 
-    for (const filePath of possiblePaths) {
-      if (fs.existsSync(filePath)) {
-        try {
-          const fileBuffer = fs.readFileSync(filePath)
-          const base64 = fileBuffer.toString("base64")
+    if (resolvedPath) {
+      try {
+        const fileBuffer = fs.readFileSync(resolvedPath)
+        const base64 = fileBuffer.toString("base64")
 
-          // Determine MIME type
-          const ext = path.extname(filename).toLowerCase()
-          let mimeType = "image/png"
-          if (ext === ".jpg" || ext === ".jpeg") mimeType = "image/jpeg"
-          else if (ext === ".gif") mimeType = "image/gif"
-          else if (ext === ".svg") mimeType = "image/svg+xml"
-          else if (ext === ".webp") mimeType = "image/webp"
+        // Determine MIME type
+        const ext = path.extname(filename).toLowerCase()
+        let mimeType = "image/png"
+        if (ext === ".jpg" || ext === ".jpeg") mimeType = "image/jpeg"
+        else if (ext === ".gif") mimeType = "image/gif"
+        else if (ext === ".svg") mimeType = "image/svg+xml"
+        else if (ext === ".webp") mimeType = "image/webp"
 
-          files[fileId] = {
-            mimeType,
-            id: fileId,
-            dataURL: `data:${mimeType};base64,${base64}`,
-            created: Date.now(),
-          }
-
-          console.log(`Loaded embedded file: ${filename} as ${fileId}`)
-          break
-        } catch (e) {
-          console.error(`Failed to read embedded file ${filename}:`, e)
+        files[fileId] = {
+          mimeType,
+          id: fileId,
+          dataURL: `data:${mimeType};base64,${base64}`,
+          created: Date.now(),
         }
+
+        console.log(`Loaded embedded file: ${filename} as ${fileId}`)
+      } catch (e) {
+        console.error(`Failed to read embedded file ${filename}:`, e)
       }
+    } else {
+      console.warn(`Could not find embedded file: ${filename}`)
     }
   }
 
@@ -154,7 +213,7 @@ export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> =
 
   return {
     name: "Excalidraw",
-    markdownPlugins() {
+    markdownPlugins(ctx) {
       return [
         () => {
           return (tree: Root, file) => {
@@ -183,10 +242,24 @@ export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> =
               }
 
               // Store data for component to use
-              if (excalidrawData) {
+              if (excalidrawData && filePath) {
+                const currentSlug = file.data.slug!
+                const contentRoot = ctx.argv.directory
+
+                // Transform options for link resolution
+                const transformOptions: TransformOptions = {
+                  strategy: "shortest",
+                  allSlugs: ctx.allSlugs,
+                }
+
                 // Extract embedded files if any
-                const baseDir = path.dirname(filePath)
-                const embeddedFiles = extractEmbeddedFiles(rawMarkdown, baseDir)
+                const embeddedFiles = extractEmbeddedFiles(
+                  rawMarkdown,
+                  currentSlug,
+                  filePath,
+                  contentRoot,
+                  transformOptions,
+                )
 
                 // Merge embedded files with existing files
                 if (Object.keys(embeddedFiles).length > 0) {
@@ -195,6 +268,24 @@ export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> =
                     ...embeddedFiles,
                   }
                   console.log(`Added ${Object.keys(embeddedFiles).length} embedded files`)
+                }
+
+                // Resolve wikilinks in elements
+                if (excalidrawData.elements) {
+                  for (const element of excalidrawData.elements) {
+                    if (element.link) {
+                      const originalLink = element.link
+                      const resolvedLink = resolveWikilink(
+                        originalLink,
+                        currentSlug,
+                        transformOptions,
+                      )
+                      element.link = resolvedLink
+                      if (resolvedLink !== originalLink) {
+                        console.log(`Resolved link: ${originalLink} -> ${resolvedLink}`)
+                      }
+                    }
+                  }
                 }
 
                 file.data.excalidraw = excalidrawData
