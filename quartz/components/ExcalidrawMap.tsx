@@ -20,17 +20,6 @@ export default (() => {
       return null
     }
 
-    // Extract basic info
-    const elements = excalidrawData.elements || []
-    const markerCount = elements.filter((el) => el.type === "text" && el.link).length
-    const zoneCount = elements.filter(
-      (el) =>
-        (el.type === "rectangle" || el.type === "ellipse") &&
-        el.backgroundColor &&
-        el.opacity &&
-        el.opacity < 100,
-    ).length
-
     // Serialize data for client-side rendering
     const dataJson = JSON.stringify(excalidrawData)
 
