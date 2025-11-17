@@ -56,20 +56,22 @@ export default (() => {
       display: none !important;
     }
 
+    /* Hide article content entirely */
+    body[data-slug$=".excalidraw"] article {
+      display: none !important;
+    }
+
     /* Only keep the Excalidraw container within the header area */
-    body[data-slug$=".excalidraw"] .page-header,
-    body[data-slug$=".excalidraw.md"] .page-header {
+    body[data-slug$=".excalidraw"] .page-header {
       padding: 0;
       margin: 0;
     }
 
-    body[data-slug$=".excalidraw"] .page-header .popover-hint,
-    body[data-slug$=".excalidraw.md"] .page-header .popover-hint {
+    body[data-slug$=".excalidraw"] .page-header .popover-hint {
       padding: 0;
     }
 
-    body[data-slug$=".excalidraw"] .page-header .popover-hint > *:not(.excalidraw-map-container),
-    body[data-slug$=".excalidraw.md"] .page-header .popover-hint > *:not(.excalidraw-map-container) {
+    body[data-slug$=".excalidraw"] .page-header .popover-hint > *:not(.excalidraw-map-container) {
       display: none !important;
     }
 
