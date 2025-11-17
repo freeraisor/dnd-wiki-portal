@@ -60,9 +60,13 @@ export default (() => {
       position: fixed;
       top: 0;
       left: 0;
-      background: white;
+      background: #ffffff;
       overflow: hidden;
       z-index: 1;
+    }
+
+    .excalidraw-map-container.dark-theme {
+      background: #1e1e1e;
     }
 
     .excalidraw-map-canvas {

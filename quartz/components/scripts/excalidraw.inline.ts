@@ -422,13 +422,15 @@ function renderExcalidraw(
   controls.querySelector(".zoom-out")?.addEventListener("click", () => panZoom.zoom(1.2))
   controls.querySelector(".reset")?.addEventListener("click", () => panZoom.resetView())
 
-  // Theme toggle - integrates with Quartz global theme
+  // Theme toggle - independent from site theme (Excalidraw-only dark mode)
   const themeToggleBtn = controls.querySelector(".theme-toggle")
 
-  // Helper function to apply theme-specific styling
-  const applyTheme = (theme: "light" | "dark") => {
+  // Helper function to apply Excalidraw theme
+  const applyExcalidrawTheme = (theme: "light" | "dark") => {
     if (theme === "dark") {
-      // Apply invert filter to entire SVG (inverts lightness while preserving hue)
+      // Add dark-theme class to container (changes entire page background)
+      mapContainer.classList.add("dark-theme")
+      // Apply invert filter to SVG (inverts lightness while preserving hue)
       svg.style.filter = "invert(93%) hue-rotate(180deg)"
       // Apply counter-filter to images so they appear correctly
       const images = svg.querySelectorAll(".excalidraw-embedded-image")
@@ -438,6 +440,8 @@ function renderExcalidraw(
       ;(themeToggleBtn as HTMLElement).textContent = "☀️"
       ;(themeToggleBtn as HTMLElement).title = "Toggle Light Mode"
     } else {
+      // Remove dark-theme class from container
+      mapContainer.classList.remove("dark-theme")
       svg.style.filter = ""
       const images = svg.querySelectorAll(".excalidraw-embedded-image")
       images.forEach((img) => {
@@ -448,28 +452,24 @@ function renderExcalidraw(
     }
   }
 
-  // Initialize theme from Quartz global theme
-  const currentTheme = (document.documentElement.getAttribute("saved-theme") ||
-    "light") as "light" | "dark"
-  applyTheme(currentTheme)
+  // Initialize Excalidraw theme from localStorage (independent from site theme)
+  const savedExcalidrawTheme = (localStorage.getItem("excalidraw-theme") || "light") as
+    | "light"
+    | "dark"
+  applyExcalidrawTheme(savedExcalidrawTheme)
 
-  // Listen for theme changes from Quartz (syncs with other theme toggles)
-  document.addEventListener("themechange", (e: any) => {
-    applyTheme(e.detail.theme)
-  })
-
-  // Toggle Quartz global theme when button is clicked
+  // Toggle Excalidraw theme (independent from site theme)
   themeToggleBtn?.addEventListener("click", () => {
-    const newTheme =
-      document.documentElement.getAttribute("saved-theme") === "dark" ? "light" : "dark"
-    document.documentElement.setAttribute("saved-theme", newTheme)
-    localStorage.setItem("theme", newTheme)
+    const currentExcalidrawTheme = mapContainer.classList.contains("dark-theme")
+      ? "dark"
+      : "light"
+    const newExcalidrawTheme = currentExcalidrawTheme === "dark" ? "light" : "dark"
 
-    // Emit theme change event for other components
-    const event = new CustomEvent("themechange", {
-      detail: { theme: newTheme },
-    })
-    document.dispatchEvent(event)
+    // Save to localStorage under separate key
+    localStorage.setItem("excalidraw-theme", newExcalidrawTheme)
+
+    // Apply theme
+    applyExcalidrawTheme(newExcalidrawTheme)
   })
 
   mapContainer.appendChild(controls)
