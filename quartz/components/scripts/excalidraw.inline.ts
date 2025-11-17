@@ -364,6 +364,7 @@ function renderExcalidraw(
       const fileData = files[el.fileId]
       if (fileData && fileData.dataURL) {
         const image = document.createElementNS("http://www.w3.org/2000/svg", "image")
+        image.setAttribute("class", "excalidraw-embedded-image")
         image.setAttribute("x", String(el.x))
         image.setAttribute("y", String(el.y))
         image.setAttribute("width", String(el.width || 0))
@@ -394,11 +395,38 @@ function renderExcalidraw(
     <button class="excalidraw-btn zoom-in" title="Zoom In">+</button>
     <button class="excalidraw-btn zoom-out" title="Zoom Out">−</button>
     <button class="excalidraw-btn reset" title="Reset View">⟲</button>
+    <button class="excalidraw-btn theme-toggle" title="Toggle Dark Mode">🌙</button>
   `
 
   controls.querySelector(".zoom-in")?.addEventListener("click", () => panZoom.zoom(0.8))
   controls.querySelector(".zoom-out")?.addEventListener("click", () => panZoom.zoom(1.2))
   controls.querySelector(".reset")?.addEventListener("click", () => panZoom.resetView())
+
+  // Theme toggle - matches Excalidraw's dark mode behavior
+  let isDarkMode = false
+  const themeToggleBtn = controls.querySelector(".theme-toggle")
+  themeToggleBtn?.addEventListener("click", () => {
+    isDarkMode = !isDarkMode
+    if (isDarkMode) {
+      // Apply invert filter to entire SVG (inverts lightness while preserving hue)
+      svg.style.filter = "invert(93%) hue-rotate(180deg)"
+      // Apply counter-filter to images so they appear correctly
+      const images = svg.querySelectorAll(".excalidraw-embedded-image")
+      images.forEach((img) => {
+        ;(img as SVGElement).style.filter = "invert(93%) hue-rotate(180deg)"
+      })
+      ;(themeToggleBtn as HTMLElement).textContent = "☀️"
+      ;(themeToggleBtn as HTMLElement).title = "Toggle Light Mode"
+    } else {
+      svg.style.filter = ""
+      const images = svg.querySelectorAll(".excalidraw-embedded-image")
+      images.forEach((img) => {
+        ;(img as SVGElement).style.filter = ""
+      })
+      ;(themeToggleBtn as HTMLElement).textContent = "🌙"
+      ;(themeToggleBtn as HTMLElement).title = "Toggle Dark Mode"
+    }
+  })
 
   mapContainer.appendChild(controls)
 }
