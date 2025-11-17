@@ -16,6 +16,19 @@ This is a simple example map demonstrating the Excalidraw integration with inter
   "elements": [
     {
       "type": "rectangle",
+      "id": "fog-1",
+      "x": 600,
+      "y": 150,
+      "width": 80,
+      "height": 100,
+      "strokeColor": "#000000",
+      "backgroundColor": "#000000",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "opacity": 80
+    },
+    {
+      "type": "rectangle",
       "id": "room-1",
       "x": 100,
       "y": 100,
@@ -80,19 +93,6 @@ This is a simple example map demonstrating the Excalidraw integration with inter
       "fillStyle": "solid",
       "strokeWidth": 2,
       "opacity": 30
-    },
-    {
-      "type": "rectangle",
-      "id": "fog-1",
-      "x": 600,
-      "y": 150,
-      "width": 80,
-      "height": 100,
-      "strokeColor": "#000000",
-      "backgroundColor": "#000000",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "opacity": 80
     },
     {
       "type": "text",
