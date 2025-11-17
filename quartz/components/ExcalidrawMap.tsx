@@ -38,13 +38,17 @@ export default (() => {
   ExcalidrawMap.afterDOMLoaded = excalidrawScript
 
   ExcalidrawMap.css = `
-    /* Hide everything for Excalidraw maps */
+    /* Hide everything for Excalidraw maps except the map itself */
     body[data-slug$=".excalidraw"] .left.sidebar,
     body[data-slug$=".excalidraw"] .right.sidebar,
     body[data-slug$=".excalidraw"] .page-header,
-    body[data-slug$=".excalidraw"] article,
     body[data-slug$=".excalidraw"] .page-footer,
     body[data-slug$=".excalidraw"] footer {
+      display: none !important;
+    }
+
+    /* Hide article content but not the article itself (map is inside) */
+    body[data-slug$=".excalidraw"] article > *:not(.excalidraw-map-container) {
       display: none !important;
     }
 
@@ -62,7 +66,7 @@ export default (() => {
       left: 0;
       background: #ffffff;
       overflow: hidden;
-      z-index: 1;
+      z-index: 1000;
     }
 
     .excalidraw-map-container.dark-theme {
