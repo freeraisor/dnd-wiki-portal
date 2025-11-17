@@ -12,7 +12,7 @@ tags: [excalidraw]
 ## Text Elements
 [[treasure-room]] ^iokH86R8
 
-[[abd]] ^UIIc2p2q
+[[entrance-hall]] ^UIIc2p2q
 
 ## Embedded Files
 367320ff60f16efa87ee5734a2ef5a86c4fd9e33: [[5.png]]
@@ -98,8 +98,8 @@ tags: [excalidraw]
 			"autoResize": true,
 			"index": "a1"
 		},
-		{
-			"text": "📍[[abd]]",
+                {
+                        "text": "📍[[entrance-hall]]",
 			"fontSize": 20,
 			"fontFamily": 5,
 			"textAlign": "left",
@@ -126,12 +126,12 @@ tags: [excalidraw]
 			"isDeleted": false,
 			"groupIds": [],
 			"boundElements": [],
-			"link": "[[abd]]",
+                        "link": "[[entrance-hall]]",
 			"locked": false,
 			"frameId": null,
 			"containerId": null,
-			"originalText": "📍[[abd]]",
-			"rawText": "[[abd]]",
+                        "originalText": "📍[[entrance-hall]]",
+                        "rawText": "[[entrance-hall]]",
 			"lineHeight": 1.25,
 			"autoResize": true,
 			"index": "a2"

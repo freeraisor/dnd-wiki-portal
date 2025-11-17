@@ -88,7 +88,13 @@ function createFileNode(currentSlug: FullSlug, node: FileTrieNode): HTMLLIElemen
   a.dataset.for = node.slug
 
   // Check if this is an Excalidraw map file
-  const isMap = node.slug.endsWith(".excalidraw") || node.displayName.endsWith(".excalidraw")
+  const normalizedSlug = node.slug.toLowerCase()
+  const normalizedDisplayName = node.displayName.toLowerCase()
+  const isMap =
+    normalizedSlug.endsWith(".excalidraw") ||
+    normalizedSlug.endsWith(".excalidraw.md") ||
+    normalizedDisplayName.endsWith(".excalidraw") ||
+    normalizedDisplayName.endsWith(".excalidraw.md")
 
   if (isMap) {
     // Add map badge

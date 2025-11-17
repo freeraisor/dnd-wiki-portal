@@ -1,17 +1,12 @@
 import { QuartzTransformerPlugin } from "../types"
 import { Root } from "mdast"
-import { visit } from "unist-util-visit"
-import { Code } from "mdast"
 import LZString from "lz-string"
 import fs from "fs"
 import path from "path"
 import {
-  FilePath,
   FullSlug,
   TransformOptions,
   transformLink,
-  slugifyFilePath,
-  simplifySlug,
 } from "../../util/path"
 
 export interface ExcalidrawData {
@@ -24,8 +19,6 @@ export interface ExcalidrawData {
 }
 
 export interface Options {}
-
-const defaultOptions: Options = {}
 
 /**
  * Decompress Excalidraw data
@@ -143,10 +136,8 @@ function findFileInContent(
  */
 function extractEmbeddedFiles(
   markdown: string,
-  currentSlug: FullSlug,
   filePath: string,
   contentRoot: string,
-  transformOptions: TransformOptions,
 ): Record<string, any> {
   const files: Record<string, any> = {}
 
@@ -207,16 +198,15 @@ function extractEmbeddedFiles(
  * Parses .excalidraw.md files and extracts drawing data
  */
 export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> = (
-  userOpts,
+  _userOpts,
 ) => {
-  const opts = { ...defaultOptions, ...userOpts }
 
   return {
     name: "Excalidraw",
     markdownPlugins(ctx) {
       return [
         () => {
-          return (tree: Root, file) => {
+          return (_tree: Root, file) => {
             const frontmatter = file.data.frontmatter as any
 
             // Check if this is an Excalidraw file
@@ -253,13 +243,7 @@ export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> =
                 }
 
                 // Extract embedded files if any
-                const embeddedFiles = extractEmbeddedFiles(
-                  rawMarkdown,
-                  currentSlug,
-                  filePath,
-                  contentRoot,
-                  transformOptions,
-                )
+                const embeddedFiles = extractEmbeddedFiles(rawMarkdown, filePath, contentRoot)
 
                 // Merge embedded files with existing files
                 if (Object.keys(embeddedFiles).length > 0) {

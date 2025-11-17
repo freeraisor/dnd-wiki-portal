@@ -1,6 +1,14 @@
 ---
-title: Welcome to Quartz
+title: Adventurer's Field Notes
+tags: [dungeon]
 ---
 
-This is a blank Quartz installation.
-See the [documentation](https://quartz.jzhao.xyz) for how to get started.
+Welcome to the expedition ledger for the ruined keep. Use the [[map.excalidraw|interactive dungeon map]] to get your bearings and jump to the detailed room briefs below.
+
+## Quick Links
+
+- [[entrance-hall]] — scouting report for the first chamber
+- [[treasure-room]] — catalog of loot and associated hazards
+- [[map.excalidraw|Dungeon Map]] — full-screen map view rendered from Excalidraw
+
+Take what you need, annotate your own findings, and keep the map updated after each delve.
