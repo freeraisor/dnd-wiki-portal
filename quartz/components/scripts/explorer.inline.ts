@@ -86,7 +86,24 @@ function createFileNode(currentSlug: FullSlug, node: FileTrieNode): HTMLLIElemen
   const a = li.querySelector("a") as HTMLAnchorElement
   a.href = resolveRelative(currentSlug, node.slug)
   a.dataset.for = node.slug
-  a.textContent = node.displayName
+
+  // Check if this is an Excalidraw map file
+  const isMap = node.slug.endsWith(".excalidraw") || node.displayName.endsWith(".excalidraw")
+
+  if (isMap) {
+    // Add map badge
+    const mapBadge = document.createElement("span")
+    mapBadge.className = "map-badge"
+    mapBadge.textContent = "MAP"
+    mapBadge.title = "Excalidraw Map"
+    a.textContent = node.displayName
+    a.appendChild(document.createTextNode(" "))
+    a.appendChild(mapBadge)
+    a.target = "_blank"
+    a.rel = "noopener noreferrer"
+  } else {
+    a.textContent = node.displayName
+  }
 
   if (currentSlug === node.slug) {
     a.classList.add("active")

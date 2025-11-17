@@ -23,6 +23,7 @@ import Breadcrumbs from "./Breadcrumbs"
 import Comments from "./Comments"
 import Flex from "./Flex"
 import ConditionalRender from "./ConditionalRender"
+import ExcalidrawMap from "./ExcalidrawMap"
 
 export {
   ArticleTitle,
@@ -49,6 +50,7 @@ export {
   Breadcrumbs,
   Comments,
   Flex,
-  ConditionalRender
+  ConditionalRender,
+  ExcalidrawMap
 }
 
