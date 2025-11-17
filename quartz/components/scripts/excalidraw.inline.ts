@@ -121,14 +121,14 @@ function renderExcalidraw(
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs")
   svg.appendChild(defs)
 
-  // Create background rectangle
+  // Create background rectangle (uses CSS variable for color)
   const background = document.createElementNS("http://www.w3.org/2000/svg", "rect")
   background.setAttribute("class", "excalidraw-background")
   background.setAttribute("x", String(initialViewBox.x))
   background.setAttribute("y", String(initialViewBox.y))
   background.setAttribute("width", String(initialViewBox.width))
   background.setAttribute("height", String(initialViewBox.height))
-  background.setAttribute("fill", "#ffffff")
+  background.setAttribute("fill", "var(--light)")
   svg.appendChild(background)
 
   // Helper: create fill patterns
@@ -422,16 +422,12 @@ function renderExcalidraw(
   controls.querySelector(".zoom-out")?.addEventListener("click", () => panZoom.zoom(1.2))
   controls.querySelector(".reset")?.addEventListener("click", () => panZoom.resetView())
 
-  // Theme toggle - matches Excalidraw's dark mode behavior
-  let isDarkMode = false
+  // Theme toggle - integrates with Quartz global theme
   const themeToggleBtn = controls.querySelector(".theme-toggle")
-  const bgRect = svg.querySelector(".excalidraw-background") as SVGRectElement
 
-  themeToggleBtn?.addEventListener("click", () => {
-    isDarkMode = !isDarkMode
-    if (isDarkMode) {
-      // Change background to dark
-      if (bgRect) bgRect.setAttribute("fill", "#1e1e1e")
+  // Helper function to apply theme-specific styling
+  const applyTheme = (theme: "light" | "dark") => {
+    if (theme === "dark") {
       // Apply invert filter to entire SVG (inverts lightness while preserving hue)
       svg.style.filter = "invert(93%) hue-rotate(180deg)"
       // Apply counter-filter to images so they appear correctly
@@ -442,8 +438,6 @@ function renderExcalidraw(
       ;(themeToggleBtn as HTMLElement).textContent = "☀️"
       ;(themeToggleBtn as HTMLElement).title = "Toggle Light Mode"
     } else {
-      // Change background back to light
-      if (bgRect) bgRect.setAttribute("fill", "#ffffff")
       svg.style.filter = ""
       const images = svg.querySelectorAll(".excalidraw-embedded-image")
       images.forEach((img) => {
@@ -452,6 +446,30 @@ function renderExcalidraw(
       ;(themeToggleBtn as HTMLElement).textContent = "🌙"
       ;(themeToggleBtn as HTMLElement).title = "Toggle Dark Mode"
     }
+  }
+
+  // Initialize theme from Quartz global theme
+  const currentTheme = (document.documentElement.getAttribute("saved-theme") ||
+    "light") as "light" | "dark"
+  applyTheme(currentTheme)
+
+  // Listen for theme changes from Quartz (syncs with other theme toggles)
+  document.addEventListener("themechange", (e: any) => {
+    applyTheme(e.detail.theme)
+  })
+
+  // Toggle Quartz global theme when button is clicked
+  themeToggleBtn?.addEventListener("click", () => {
+    const newTheme =
+      document.documentElement.getAttribute("saved-theme") === "dark" ? "light" : "dark"
+    document.documentElement.setAttribute("saved-theme", newTheme)
+    localStorage.setItem("theme", newTheme)
+
+    // Emit theme change event for other components
+    const event = new CustomEvent("themechange", {
+      detail: { theme: newTheme },
+    })
+    document.dispatchEvent(event)
   })
 
   mapContainer.appendChild(controls)
