@@ -121,6 +121,16 @@ function renderExcalidraw(
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs")
   svg.appendChild(defs)
 
+  // Create background rectangle
+  const background = document.createElementNS("http://www.w3.org/2000/svg", "rect")
+  background.setAttribute("class", "excalidraw-background")
+  background.setAttribute("x", String(initialViewBox.x))
+  background.setAttribute("y", String(initialViewBox.y))
+  background.setAttribute("width", String(initialViewBox.width))
+  background.setAttribute("height", String(initialViewBox.height))
+  background.setAttribute("fill", "#ffffff")
+  svg.appendChild(background)
+
   // Helper: create fill patterns
   const patternCounter = { value: 0 }
   const createPattern = (fillStyle: string, color: string) => {
@@ -303,13 +313,23 @@ function renderExcalidraw(
         for (let i = 1; i < el.points.length; i++) {
           d += ` L ${el.x + el.points[i][0]} ${el.y + el.points[i][1]}`
         }
-        if (el.backgroundColor && el.backgroundColor !== "transparent") {
+
+        // Only close the path if first and last points are close (closed shape)
+        const firstPoint = el.points[0]
+        const lastPoint = el.points[el.points.length - 1]
+        const threshold = 5 // pixels
+        const isClosed =
+          Math.abs(firstPoint[0] - lastPoint[0]) < threshold &&
+          Math.abs(firstPoint[1] - lastPoint[1]) < threshold
+
+        if (isClosed && el.backgroundColor && el.backgroundColor !== "transparent") {
           d += " Z"
         }
+
         path.setAttribute("d", d)
         path.setAttribute(
           "fill",
-          el.backgroundColor && el.backgroundColor !== "transparent"
+          isClosed && el.backgroundColor && el.backgroundColor !== "transparent"
             ? getFill(el)
             : "none",
         )
@@ -405,9 +425,13 @@ function renderExcalidraw(
   // Theme toggle - matches Excalidraw's dark mode behavior
   let isDarkMode = false
   const themeToggleBtn = controls.querySelector(".theme-toggle")
+  const bgRect = svg.querySelector(".excalidraw-background") as SVGRectElement
+
   themeToggleBtn?.addEventListener("click", () => {
     isDarkMode = !isDarkMode
     if (isDarkMode) {
+      // Change background to dark
+      if (bgRect) bgRect.setAttribute("fill", "#1e1e1e")
       // Apply invert filter to entire SVG (inverts lightness while preserving hue)
       svg.style.filter = "invert(93%) hue-rotate(180deg)"
       // Apply counter-filter to images so they appear correctly
@@ -418,6 +442,8 @@ function renderExcalidraw(
       ;(themeToggleBtn as HTMLElement).textContent = "☀️"
       ;(themeToggleBtn as HTMLElement).title = "Toggle Light Mode"
     } else {
+      // Change background back to light
+      if (bgRect) bgRect.setAttribute("fill", "#ffffff")
       svg.style.filter = ""
       const images = svg.querySelectorAll(".excalidraw-embedded-image")
       images.forEach((img) => {
