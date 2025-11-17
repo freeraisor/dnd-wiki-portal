@@ -20,6 +20,10 @@ section {
   color: var(--darkgray);
 }
 
+:root {
+  --page-inline-padding: clamp(1.5rem, 8vw, 6.5rem);
+}
+
 .text-highlight {
   background-color: var(--textHighlight);
   padding: 0 0.1rem;
@@ -173,6 +177,7 @@ a {
     column-gap: #{map.get($desktopGrid, columnGap)};
     row-gap: #{map.get($desktopGrid, rowGap)};
     grid-template-areas: #{map.get($desktopGrid, templateAreas)};
+    padding-inline: var(--page-inline-padding);
 
     @media all and ($tablet) {
       grid-template-columns: #{map.get($tabletGrid, templateColumns)};
@@ -190,7 +195,7 @@ a {
     }
 
     @media all and not ($desktop) {
-      padding: 0 1rem;
+      padding-inline: clamp(1rem, 4vw, 3rem);
     }
     @media all and ($mobile) {
       margin: 0 auto;
