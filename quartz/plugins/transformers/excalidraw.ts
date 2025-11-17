@@ -107,27 +107,74 @@ function resolveWikilink(
 /**
  * Find file in content directory using Quartz's resolution logic
  */
+function sanitizeEmbeddedTarget(target: string): string {
+  const [beforeAlias] = target.split("|")
+  return beforeAlias.trim()
+}
+
+function isWithinContentRoot(contentRoot: string, candidate: string): boolean {
+  const relative = path.relative(contentRoot, candidate)
+  return relative && !relative.startsWith("..") && !path.isAbsolute(relative)
+}
+
+function findFileByBasename(
+  basename: string,
+  contentRoot: string,
+  seenDirs = new Set<string>(),
+): string | null {
+  const stack: string[] = [contentRoot]
+
+  while (stack.length > 0) {
+    const currentDir = stack.pop()!
+    if (seenDirs.has(currentDir)) {
+      continue
+    }
+    seenDirs.add(currentDir)
+
+    const entries = fs.readdirSync(currentDir, { withFileTypes: true })
+    for (const entry of entries) {
+      const entryPath = path.join(currentDir, entry.name)
+      if (entry.isDirectory()) {
+        stack.push(entryPath)
+      } else if (entry.isFile() && entry.name === basename) {
+        return entryPath
+      }
+    }
+  }
+
+  return null
+}
+
 function findFileInContent(
   filename: string,
   contentRoot: string,
   currentFileDir: string,
 ): string | null {
-  // Try multiple possible locations
-  const possiblePaths = [
-    path.join(currentFileDir, filename),
-    path.join(currentFileDir, "..", filename),
-    path.join(contentRoot, filename),
-    path.join(contentRoot, "assets", filename),
-    path.join(contentRoot, "attachments", filename),
-  ]
+  const cleaned = sanitizeEmbeddedTarget(filename).replace(/\\/g, "/")
 
-  for (const filePath of possiblePaths) {
-    if (fs.existsSync(filePath)) {
-      return filePath
+  if (!cleaned) {
+    return null
+  }
+
+  const candidatePaths = new Set<string>()
+  const normalizedFromCurrent = path.resolve(currentFileDir, cleaned)
+  candidatePaths.add(normalizedFromCurrent)
+  candidatePaths.add(path.resolve(contentRoot, cleaned))
+
+  if (!cleaned.includes("/")) {
+    candidatePaths.add(path.resolve(currentFileDir, "..", cleaned))
+    candidatePaths.add(path.resolve(contentRoot, "assets", cleaned))
+    candidatePaths.add(path.resolve(contentRoot, "attachments", cleaned))
+  }
+
+  for (const candidate of candidatePaths) {
+    if (isWithinContentRoot(contentRoot, candidate) && fs.existsSync(candidate)) {
+      return candidate
     }
   }
 
-  return null
+  const byBasename = findFileByBasename(path.basename(cleaned), contentRoot)
+  return byBasename && fs.existsSync(byBasename) ? byBasename : null
 }
 
 /**
