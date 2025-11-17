@@ -261,6 +261,23 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
       ellipse.setAttribute("stroke-width", el.strokeWidth || 1)
       ellipse.setAttribute("opacity", (el.opacity || 100) / 100)
       group.appendChild(ellipse)
+    } else if (el.type === "diamond") {
+      // Diamond is a rotated square - render as polygon
+      const polygon = document.createElementNS("http://www.w3.org/2000/svg", "polygon")
+      const cx = el.x + el.width / 2
+      const cy = el.y + el.height / 2
+      const points = [
+        `${cx},${el.y}`, // top
+        `${el.x + el.width},${cy}`, // right
+        `${cx},${el.y + el.height}`, // bottom
+        `${el.x},${cy}`, // left
+      ].join(" ")
+      polygon.setAttribute("points", points)
+      polygon.setAttribute("fill", el.backgroundColor || "transparent")
+      polygon.setAttribute("stroke", el.strokeColor || "#000")
+      polygon.setAttribute("stroke-width", el.strokeWidth || 1)
+      polygon.setAttribute("opacity", (el.opacity || 100) / 100)
+      group.appendChild(polygon)
     } else if (el.type === "text") {
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text")
       text.setAttribute("x", el.x)
@@ -293,9 +310,13 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
         for (let i = 1; i < el.points.length; i++) {
           d += ` L ${el.x + el.points[i][0]} ${el.y + el.points[i][1]}`
         }
+        // Auto-close path if it has backgroundColor (for fog of war)
+        if (el.backgroundColor && el.backgroundColor !== "transparent") {
+          d += " Z"
+        }
 
         path.setAttribute("d", d)
-        path.setAttribute("fill", "none")
+        path.setAttribute("fill", el.backgroundColor || "none")
         path.setAttribute("stroke", el.strokeColor || "#000")
         path.setAttribute("stroke-width", String(el.strokeWidth || 1))
         path.setAttribute("opacity", String((el.opacity || 100) / 100))
