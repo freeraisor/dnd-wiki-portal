@@ -121,16 +121,6 @@ function renderExcalidraw(
   const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs")
   svg.appendChild(defs)
 
-  // Create background rectangle (uses CSS variable for color)
-  const background = document.createElementNS("http://www.w3.org/2000/svg", "rect")
-  background.setAttribute("class", "excalidraw-background")
-  background.setAttribute("x", String(initialViewBox.x))
-  background.setAttribute("y", String(initialViewBox.y))
-  background.setAttribute("width", String(initialViewBox.width))
-  background.setAttribute("height", String(initialViewBox.height))
-  background.setAttribute("fill", "var(--light)")
-  svg.appendChild(background)
-
   // Helper: create fill patterns
   const patternCounter = { value: 0 }
   const createPattern = (fillStyle: string, color: string) => {
