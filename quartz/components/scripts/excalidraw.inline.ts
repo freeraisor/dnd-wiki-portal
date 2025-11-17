@@ -233,6 +233,94 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
     `${initialViewBox.x} ${initialViewBox.y} ${initialViewBox.width} ${initialViewBox.height}`,
   )
 
+  // Create defs for patterns and filters
+  const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs")
+  svg.appendChild(defs)
+
+  // Create roughness filter
+  const roughnessFilter = document.createElementNS("http://www.w3.org/2000/svg", "filter")
+  roughnessFilter.setAttribute("id", "roughness-filter")
+  const turbulence = document.createElementNS("http://www.w3.org/2000/svg", "feTurbulence")
+  turbulence.setAttribute("type", "fractalNoise")
+  turbulence.setAttribute("baseFrequency", "0.05")
+  turbulence.setAttribute("numOctaves", "2")
+  turbulence.setAttribute("result", "noise")
+  roughnessFilter.appendChild(turbulence)
+  const displace = document.createElementNS("http://www.w3.org/2000/svg", "feDisplacementMap")
+  displace.setAttribute("in", "SourceGraphic")
+  displace.setAttribute("in2", "noise")
+  displace.setAttribute("scale", "2")
+  roughnessFilter.appendChild(displace)
+  defs.appendChild(roughnessFilter)
+
+  // Helper to create fill patterns
+  const createPattern = (id: string, fillStyle: string, color: string) => {
+    const pattern = document.createElementNS("http://www.w3.org/2000/svg", "pattern")
+    pattern.setAttribute("id", id)
+    pattern.setAttribute("patternUnits", "userSpaceOnUse")
+    pattern.setAttribute("width", "8")
+    pattern.setAttribute("height", "8")
+
+    if (fillStyle === "hachure") {
+      // Diagonal lines
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line")
+      line.setAttribute("x1", "0")
+      line.setAttribute("y1", "0")
+      line.setAttribute("x2", "8")
+      line.setAttribute("y2", "8")
+      line.setAttribute("stroke", color)
+      line.setAttribute("stroke-width", "1")
+      pattern.appendChild(line)
+    } else if (fillStyle === "cross-hatch") {
+      // Diagonal lines both ways
+      const line1 = document.createElementNS("http://www.w3.org/2000/svg", "line")
+      line1.setAttribute("x1", "0")
+      line1.setAttribute("y1", "0")
+      line1.setAttribute("x2", "8")
+      line1.setAttribute("y2", "8")
+      line1.setAttribute("stroke", color)
+      line1.setAttribute("stroke-width", "1")
+      pattern.appendChild(line1)
+
+      const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line")
+      line2.setAttribute("x1", "0")
+      line2.setAttribute("y1", "8")
+      line2.setAttribute("x2", "8")
+      line2.setAttribute("y2", "0")
+      line2.setAttribute("stroke", color)
+      line2.setAttribute("stroke-width", "1")
+      pattern.appendChild(line2)
+    } else if (fillStyle === "dots") {
+      // Dot pattern
+      const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle")
+      circle.setAttribute("cx", "4")
+      circle.setAttribute("cy", "4")
+      circle.setAttribute("r", "1")
+      circle.setAttribute("fill", color)
+      pattern.appendChild(circle)
+    }
+
+    defs.appendChild(pattern)
+    return `url(#${id})`
+  }
+
+  // Helper to get fill based on fillStyle
+  const getFill = (el: any, patternCounter: { value: number }) => {
+    if (!el.backgroundColor || el.backgroundColor === "transparent") {
+      return "transparent"
+    }
+
+    if (el.fillStyle === "solid" || !el.fillStyle) {
+      return el.backgroundColor
+    }
+
+    // Create pattern for hachure/cross-hatch/dots
+    const patternId = `pattern-${patternCounter.value++}`
+    return createPattern(patternId, el.fillStyle, el.backgroundColor)
+  }
+
+  const patternCounter = { value: 0 }
+
   // Sort elements by fractional index for correct z-order
   const sortedElements = [...elements].sort((a: any, b: any) => {
     const indexA = a.index || "a0"
@@ -251,6 +339,11 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
       element.setAttribute("stroke-dasharray", "8,8")
     } else if (el.strokeStyle === "dotted") {
       element.setAttribute("stroke-dasharray", "2,4")
+    }
+
+    // Apply roughness filter for hand-drawn style
+    if (el.roughness && el.roughness > 0) {
+      element.setAttribute("filter", "url(#roughness-filter)")
     }
   }
 
@@ -277,7 +370,18 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
       rect.setAttribute("y", el.y)
       rect.setAttribute("width", el.width)
       rect.setAttribute("height", el.height)
-      rect.setAttribute("fill", el.backgroundColor || "transparent")
+      rect.setAttribute("fill", getFill(el, patternCounter))
+
+      // Apply corner rounding if specified
+      if (el.roundness && el.roundness.type === "adaptive") {
+        const radius = Math.min(el.width, el.height) * 0.1
+        rect.setAttribute("rx", String(radius))
+        rect.setAttribute("ry", String(radius))
+      } else if (el.roundness && typeof el.roundness === "number") {
+        rect.setAttribute("rx", String(el.roundness))
+        rect.setAttribute("ry", String(el.roundness))
+      }
+
       applyStyles(rect, el)
       group.appendChild(rect)
     } else if (el.type === "ellipse") {
@@ -286,7 +390,7 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
       ellipse.setAttribute("cy", el.y + el.height / 2)
       ellipse.setAttribute("rx", el.width / 2)
       ellipse.setAttribute("ry", el.height / 2)
-      ellipse.setAttribute("fill", el.backgroundColor || "transparent")
+      ellipse.setAttribute("fill", getFill(el, patternCounter))
       applyStyles(ellipse, el)
       group.appendChild(ellipse)
     } else if (el.type === "diamond") {
@@ -301,7 +405,7 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
         `${el.x},${cy}`, // left
       ].join(" ")
       polygon.setAttribute("points", points)
-      polygon.setAttribute("fill", el.backgroundColor || "transparent")
+      polygon.setAttribute("fill", getFill(el, patternCounter))
       applyStyles(polygon, el)
       group.appendChild(polygon)
     } else if (el.type === "text") {
@@ -342,7 +446,8 @@ function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer
         }
 
         path.setAttribute("d", d)
-        path.setAttribute("fill", el.backgroundColor || "none")
+        const fill = el.backgroundColor && el.backgroundColor !== "transparent" ? getFill(el, patternCounter) : "none"
+        path.setAttribute("fill", fill)
         path.setAttribute("stroke-linecap", "round")
         path.setAttribute("stroke-linejoin", "round")
         applyStyles(path, el)
