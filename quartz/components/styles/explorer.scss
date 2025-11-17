@@ -268,3 +268,25 @@ li:has(> .folder-outer:not(.open)) > .folder-container > svg {
     overflow: hidden;
   }
 }
+
+// Map badge styles
+.map-badge {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  margin-left: 0.3rem;
+  background: linear-gradient(135deg, var(--tertiary) 0%, var(--secondary) 100%);
+  color: var(--light);
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  }
+}

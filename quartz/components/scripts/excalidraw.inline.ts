@@ -98,7 +98,7 @@ function renderExcalidraw(
 
   const width = maxX - minX || 800
   const height = maxY - minY || 600
-  const padding = 50
+  const padding = 200
 
   const initialViewBox = {
     x: minX - padding,
@@ -290,6 +290,7 @@ function renderExcalidraw(
         const link = document.createElementNS("http://www.w3.org/2000/svg", "a")
         link.setAttributeNS("http://www.w3.org/1999/xlink", "xlink:href", el.link)
         link.setAttribute("href", el.link)
+        link.setAttribute("target", "_blank")
         link.setAttribute("style", "cursor: pointer;")
         link.appendChild(text)
         group.appendChild(link)
