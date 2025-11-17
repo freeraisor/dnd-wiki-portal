@@ -1,0 +1,572 @@
+From 9ad2854078a53ff98e2b023eb0e7a85a96475237 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 16 Nov 2025 22:39:58 +0000
+Subject: [PATCH 10/12] Add pan/zoom controls and fix instant rendering for
+ Excalidraw maps
+
+Features:
+- Pan: Drag with mouse or touch to move around the map
+- Zoom: Mouse wheel or +/- buttons to zoom in/out
+- Reset button to restore original view
+- Support for touch devices
+- Instant rendering on SPA navigation using "nav" event
+
+UI Improvements:
+- Control buttons positioned at bottom-right
+- Smooth transitions and hover effects
+- Grab cursor during panning
+- Zoom limits (0.1x - 10x)
+
+Documentation:
+- Added QUARTZ_INTEGRATION.md with implementation details
+- Documented data format and compression method
+- Listed supported element types and limitations
+
+Cleanup:
+- Removed test-map.excalidraw.md (corrupted data)
+- Removed debug logging from transformer
+---
+ content/test-map.excalidraw.md                |  31 ---
+ .../QUARTZ_INTEGRATION.md                     | 176 +++++++++++++++
+ quartz/components/ExcalidrawMap.tsx           |  37 ++++
+ .../components/scripts/excalidraw.inline.ts   | 205 +++++++++++++++++-
+ quartz/plugins/transformers/excalidraw.ts     |   3 +-
+ 5 files changed, 412 insertions(+), 40 deletions(-)
+ delete mode 100644 content/test-map.excalidraw.md
+ create mode 100644 obsidian-excalidraw-plugin/QUARTZ_INTEGRATION.md
+
+diff --git a/content/test-map.excalidraw.md b/content/test-map.excalidraw.md
+deleted file mode 100644
+index c0b3cbb..0000000
+--- a/content/test-map.excalidraw.md
++++ /dev/null
+@@ -1,31 +0,0 @@
+----
+-
+-excalidraw-plugin: parsed
+-tags:
+-  - excalidraw
+----
+-==⚠  Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠== You can decompress Drawing data with the command palette: 'Decompress current Excalidraw file'. For more info check in plugin settings under 'Saving'
+-
+-
+-# Excalidraw Data
+-## Text Elements
+-Test Room %%ID:text-1%%
+-Another Room %%ID:text-2%%
+-
+-## Drawing
+-```compressed-json
+-N4KAkARALgngDgUwgLgAQQQDwMYEMA2AlgCYBOuA7hADTgQBuCpAzoQPYB2KqATLZMzYBXUtiRoIACyhQ4zZAHoFAc0JRJQgEYA6bGwC2CgF7N6hbEcK4OCtptbErHALRY8RMpWdx8Q1TdIEfARcZgRmBShcZQUebQBWbQAGGjoghH0EDihmbgBtcDBQMBLoeHF0KCwoJMLIRhZ2LjQARnYAZnq85tLiutZOADlOMW4qkm5IL2cvWPiElJIATj6BkfHJs
+-
+-YmAFiWV6cnBlj3RydXFkcPj46WqtYBGC4uATgA2btW1y4BmM8uARnObhWj0+K1W11un1+nx+b2OS0eG1OD0uDwAlAikRgNDZ8YwATj3PsNCxQZQIBC9nMnjx6DRSMwesw+jgsBBgQgoSRWHgsAxWPhkdi9miRJJmFj2AA1CG4UzIEhwZgAZUrOZC8QFJZuADMJNRJGdxIE5TcAMwABRl%2BFwqvxCplMAAtLRsOUzR%2FPV6%2Flxwfg5TZSCoVWxOFRwkrFeKnviY39BSrFYsAIzOiUOx2vd0ev4R21StU65a%2BgC%2B5V1OoNUZNMdNcct0bjSaTKdTDezWdz%2Bcduazldz1dzVfqZdbHa7%2BZ7i7T%2FcHBZHA5rY9b3b7ffHM7no97e%2FPy4vW6vSdt/ptE%2B9vu9/sfgef
+-
+-L9fb%2Bvb8%2Bd4%2Bh7Ps%2Bn%2BDi/Y92D%2FI8mCApgQPPJ8X1feob3%2Fdo2AgyCUJguDEN/T8%2B3/BC4Kg29v1Q%2BCEM/ZCMM/bC8NPQCSP/ajqJQljSLfJjfzwiSsKwsjiNI/jtOEvDhII/jBKEkSxNIiTyJQyTZNkv8FJE5TVI0rSdMM/ibOM%2FsbLMmyZMcoybKcpz%2BIkzy9L8uyAu8wK1J8vTHMCqLEpCvyvKiwqnKSp%2BorhOq/KSgrfN8kqooqzKwtS/r%2BqK6rEvKxaVrqjaGoS3LRsmmatoK2q5vm%2BbauW5aVoqhqVtairtqq9qapam7etOzrmoGvr7qurbpv%2BxaQduv6Ht%2B07QYO46Doe4G
+-
+-Xsuz7TuuyGnr%2B07/veoGPpBsHQchyH3th2Hvuhl7YehpGUZO9H0cxyGsfRnGccesG8bJ0mKZp3Gqcp2m6fx5mWY5jnOdx/mica1myeZznWa5vmedFzmhY5nmuaF0X%2Bcl0mZfJqXpdpunpZZ5W2dlvmRdFsXJelz25alv3lcV93Vfdz3fc1/XNa9n2da9/WXYD/XA8N4Pw/D6P46TmPo8jxPY7TuOw%2BjpOs/j1O0/Tz2M5z8P87znPi7zlvm/TgvC9byuG8rtum47tuM9b1vm4r9uq9L2vO6b5vm4btv686Pt%2B5H/t%2B0HQeh1Hoch
+-
+-3Hwch6HAd%2B9Hodh8n4eR1HcfxwnKfJ2nyfp9nmd53nxeZ/nheF4Xxel6Xpfl%2BX5eV5X1eV7Xtf5%2BXjf1431fN%2B31et%2B37fl53/et%2B3nf98P/fj%2BPk%2BT5P0%2Bz9Ps%2BL/P6%2BL%2Bvy%2Br%2Bv6/L4%2BO/f7uP%2B/j%2Bf6/X%2Bv9/79/x%2B/8/t/v%2B/3/v9/n/f9%2BP/fz/n%2B/1/n%2B/9/3/fz/38/z/v8f9%2Bf8/v/f9%2Bf9/38%2Fz/v%2B/7%2B/9/v%2B/7/v%2B%2BH/fz/v%2B/3/f7/v%2B/3/f9/v%2B/7/v9/3%2B/7/v9/3%2B/7/v%2B/3
+-
+-/f7/v%2B/3/f7/v9/3%2B/7/f9/v%2B/3/f7/v9/3%2B/7/f9/v%2B/3/f7/v9/3%2B/7/f9/v%2B/3/f7/v9/3%2B/7/f9/v%2B/w%2BH4%2BX4/X6/3%2B/3%2B/3%2B/3%2B/3%2B/3%2B/3%2B/w%3D%3D
+-```
+-%%
+-N4KAkARALgngDgUwgLgAQQQDwMYEMA2AlgCYBOuA7hADTgQBuCpAzoQPYB2KqATLZMzYBXUtiRoIACyhQ4zZAHoFAc0JRJQgEYA6bGwC2CgF7N6hbEcK4OCtptbErHALRY8RMpWdx8Q1TdIEfARcZgRmBShcZQUebQBWbQAGGjoghH0EDihmbgBtcDBQMBLoeHF0KCwoJMLIRhZ2LjQARnYAZnq85tLiutZOADlOMW4qkm5IL2cvWPiElJIATj6BkfHJsYmAFiWV6cnBlj3RydXFkcPj46WqtYBGC4uATgA2btW1y4BmM8uARnObhWj0+K1W11un1+nx+b2OS0eG1OD0uDwAlAikRgNDZ8YwATj3PsNCxQZQIBC9nMnjx6DRSMwesw+jgsBBgQgoSRWHgsAxWPhkdi9miRJJmFj2AA1CG4UzIEhwZgAZUrOZC8QFJZuADMJNRJGdxIE5TcAMwABRl+FwqvxCplMAAtLRsOUzR/PV6/lxwfg5TZSCoVWxOFRwkrFeKnviY39BSrFYsAIzOiUOx2vd0ev4R21StU65a+gC+5V1OoNUZNMdNcct0bjSaTKdTDezWdz+cduazldz1dzVfqZdbHa7+Z7i7T/cHBZHA5rY9b3b7ffHM7no97e/Py4vW6vSdt/ptE+9vu9/sfgefL9fb+vb8+d4+h7Ps+n+Di/Y92D/I8mCApgQPPJ8X1fdob3/do2AgyCUJguDEN/T8+3/BC4Kg29v1Q+CEM/ZCMM/bC8NPQCSP/ajqJQljSLfJjfzwiSsKwsjiNI/jtOEvDhII/jBKEkSxNIiTyJQyTZNkv8FJE5TVI0rSdMM/ibOM+sbLMmyZMcoybKcpz+IkzyLvyjK1J8vTHMCqLEpCvyvKiwqnKSp+oorhOq/KSgrfN8kqooqzKwtS/r+qK6rEvKxaVrqjaGoS3LRsmmatoK2q5vm+bau6W5aVoqhqVtairtqq9qapam7etOzrmoGvr7qurbpv+xaQduv6Ht+07QYO46Toe4GXsuz7TuuyGnr+07/veoGPpBsHQchyH3th2Hvuhl7YehpGUZO9H0cxyGsfRnGccesG8bJ0mKZp3Gqcp2m6fx5mWY5jnOdx/medFzmhY5nmuaF0X+clyWVfFzmheZ5Wh2fJqXpdpunpZZ5W2dlvmRdFsXJelz25alv3lcV93Vfdz3fc1/XNa9n2da9/WXYD/XA8N4Pw/D6P46TmPo8jxPY7TuOw+jpo+s/j1O0/Tz2M5z8P87znPi7zlvm/TguLC9byuG8rtum47tuM9b1vm4r9uq9L2vO6b5vm4btv686Pt+5H/t+0HQeh1Hoch3Hwch6HAd+9Hodh8n4eR1HcfxwnKfJ2nyfp9nmd53nxeZ/nheF4Xxel6Xpfl+X5eV5X1eV7Xtf5+Xjf1431fN+31et+3/fl53/et+3nf98P/fj+Pk+T5P0+z9Ps+L/P6+L+vy+r+v6/L4+O/f7uP+/j+f6/X+v9/79/x+/8/t/v+/3/v9/n/f9/P/fz/n+/1/n+/9/3/fz/38/z/v8f9+f8/v/f9+f9/38/z/v+/7+/9/v+/7/v9+H/fz/v+/3/f7/v+/3/f9/v+/7/v9/3+/7/v9/3+/7/v+/3/f7/v9/3+/7/f9/v+/3/f7/v9/3+/7/f9/v+/3/f7/v9/3+/7/f9/v+/w+H4+X4/X6/3+/3+/3+/3+/3+/3+/3+/w==
+-%%
+\ No newline at end of file
+diff --git a/obsidian-excalidraw-plugin/QUARTZ_INTEGRATION.md b/obsidian-excalidraw-plugin/QUARTZ_INTEGRATION.md
+new file mode 100644
+index 0000000..d318ae7
+--- /dev/null
++++ b/obsidian-excalidraw-plugin/QUARTZ_INTEGRATION.md
+@@ -0,0 +1,176 @@
++# Quartz Integration for Obsidian Excalidraw Plugin
++
++Эта документация описывает интеграцию Excalidraw карт в Quartz static site generator.
++
++## Обзор
++
++Мы реализовали поддержку `.excalidraw.md` файлов из Obsidian в Quartz, позволяя отображать интерактивные карты с возможностью масштабирования и перемещения.
++
++## Формат данных Excalidraw
++
++Obsidian Excalidraw Plugin хранит данные в следующем формате:
++
++```markdown
++---
++excalidraw-plugin: parsed
++---
++
++# Excalidraw Data
++
++## Drawing
++\```compressed-json
++[LZ-String compressed base64 data]
++\```
++%%
++[Duplicate compressed data in comments]
++%%
++```
++
++### Компрессия
++
++- **Библиотека**: lz-string
++- **Метод**: `LZString.compressToBase64()` / `LZString.decompressFromBase64()`
++- **Формат**: Base64-encoded LZ-compressed JSON
++- **Особенность**: Данные разбиты на строки через каждые ~256 символов
++
++### Структура данных
++
++После декомпрессии получается JSON объект:
++
++```json
++{
++  "type": "excalidraw",
++  "version": 2,
++  "source": "https://github.com/zsviczian/obsidian-excalidraw-plugin/...",
++  "elements": [
++    {
++      "id": "unique-id",
++      "type": "freedraw|rectangle|ellipse|text|line|arrow|image",
++      "x": 0,
++      "y": 0,
++      "width": 100,
++      "height": 100,
++      "angle": 0,
++      "strokeColor": "#000000",
++      "backgroundColor": "transparent",
++      "fillStyle": "solid",
++      "strokeWidth": 2,
++      "strokeStyle": "solid",
++      "roughness": 1,
++      "opacity": 100,
++      "points": [[0, 0], [10, 10], ...],  // для freedraw, line, arrow
++      ...
++    }
++  ],
++  "appState": { ... },
++  "files": { ... }
++}
++```
++
++## Реализация в Quartz
++
++### 1. Transformer (`quartz/plugins/transformers/excalidraw.ts`)
++
++**Задача**: Извлекает и декомпрессирует данные Excalidraw во время сборки.
++
++**Ключевые моменты**:
++- Читает оригинальный markdown файл с диска (до обработки OFM transformer)
++- Извлекает `compressed-json` код блок (может быть внутри `%%` комментариев)
++- Декомпрессирует используя lz-string
++- Сохраняет данные в `file.data.excalidraw`
++
++```typescript
++import LZString from "lz-string"
++
++function decompressExcalidrawData(compressedData: string): ExcalidrawData | null {
++  const cleaned = compressedData.replace(/\s+/g, "") // Remove all whitespace
++  const decompressed = LZString.decompressFromBase64(cleaned)
++  const parsed = JSON.parse(decompressed)
++  return parsed.type === "excalidraw" ? parsed : null
++}
++```
++
++### 2. Component (`quartz/components/ExcalidrawMap.tsx`)
++
++**Задача**: Рендерит контейнер для карты и передает данные в data-атрибут.
++
++**Ключевые моменты**:
++- Проверяет frontmatter `excalidraw-plugin: parsed`
++- Сериализует данные в JSON и помещает в `data-excalidraw` атрибут
++- Создает контейнер `.excalidraw-map-container` и `.excalidraw-map-canvas`
++- Скрывает UI элементы (sidebar, header, footer) для fullscreen отображения
++
++### 3. Client Script (`quartz/components/scripts/excalidraw.inline.ts`)
++
++**Задача**: Отрисовывает SVG карту с интерактивными элементами управления.
++
++**Функциональность**:
++- **Рендеринг элементов**: freedraw, rectangle, ellipse, text, line, arrow, image
++- **Pan (перемещение)**: Drag мышью или touch на мобильных
++- **Zoom (масштабирование)**: Колесико мыши или кнопки +/-
++- **Элементы управления**: Кнопки zoom in, zoom out, reset
++
++**Поддерживаемые типы элементов**:
++
++| Тип | Реализация |
++|-----|-----------|
++| `freedraw` | SVG `<path>` с линиями через точки |
++| `rectangle` | SVG `<rect>` |
++| `ellipse` | SVG `<ellipse>` |
++| `text` | SVG `<text>` с поддержкой wiki-links |
++| `line` | SVG `<path>` |
++| `arrow` | SVG `<path>` (без наконечника пока) |
++| `image` | SVG `<image>` с data URL |
++
++### 4. Layout (`quartz.layout.ts`)
++
++**Задача**: Условное отображение ExcalidrawMap компонента.
++
++```typescript
++Component.ConditionalRender({
++  component: Component.ExcalidrawMap(),
++  condition: (page) => (page.fileData.frontmatter as any)?.["excalidraw-plugin"] === "parsed",
++})
++```
++
++## Зависимости
++
++```json
++{
++  "lz-string": "^1.5.0"
++}
++```
++
++## Использование
++
++1. Создайте `.excalidraw.md` файл в Obsidian с Excalidraw Plugin
++2. Поместите файл в `content/` директорию Quartz
++3. Запустите `npx quartz build`
++4. Откройте сгенерированную страницу - карта будет отображаться в fullscreen режиме
++
++## Управление картой
++
++- **Перемещение**: Зажмите левую кнопку мыши и двигайте
++- **Zoom**: Крутите колесико мыши или используйте кнопки +/-
++- **Reset**: Кнопка ⟲ вернет начальный вид
++
++## Известные ограничения
++
++1. Стрелки отображаются как простые линии (без наконечников)
++2. Roughness и другие стили Excalidraw не поддерживаются
++3. Анимации отсутствуют
++4. Группировка элементов не учитывается
++
++## Будущие улучшения
++
++- [ ] Поддержка наконечников стрелок
++- [ ] Rough.js для roughness стилей
++- [ ] Поддержка frames
++- [ ] Pinch-to-zoom на мобильных
++- [ ] Клавиатурные shortcuts для zoom/pan
++
++## Ссылки
++
++- [Obsidian Excalidraw Plugin](https://github.com/zsviczian/obsidian-excalidraw-plugin)
++- [lz-string Library](https://github.com/pieroxy/lz-string)
++- [Quartz Documentation](https://quartz.jzhao.xyz/)
+diff --git a/quartz/components/ExcalidrawMap.tsx b/quartz/components/ExcalidrawMap.tsx
+index edc533a..2b4ea74 100644
+--- a/quartz/components/ExcalidrawMap.tsx
++++ b/quartz/components/ExcalidrawMap.tsx
+@@ -96,6 +96,43 @@ export default (() => {
+       text-align: center;
+       color: var(--red);
+     }
++
++    .excalidraw-controls {
++      position: fixed;
++      bottom: 20px;
++      right: 20px;
++      display: flex;
++      flex-direction: column;
++      gap: 8px;
++      z-index: 10;
++    }
++
++    .excalidraw-btn {
++      width: 40px;
++      height: 40px;
++      border-radius: 8px;
++      border: 1px solid var(--lightgray);
++      background: var(--light);
++      color: var(--dark);
++      font-size: 20px;
++      cursor: pointer;
++      display: flex;
++      align-items: center;
++      justify-content: center;
++      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
++      transition: all 0.2s ease;
++    }
++
++    .excalidraw-btn:hover {
++      background: var(--lightgray);
++      transform: translateY(-1px);
++      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
++    }
++
++    .excalidraw-btn:active {
++      transform: translateY(0);
++      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
++    }
+   `
+ 
+   return ExcalidrawMap
+diff --git a/quartz/components/scripts/excalidraw.inline.ts b/quartz/components/scripts/excalidraw.inline.ts
+index 59a0643..f569749 100644
+--- a/quartz/components/scripts/excalidraw.inline.ts
++++ b/quartz/components/scripts/excalidraw.inline.ts
+@@ -1,5 +1,5 @@
+-// Excalidraw Map Viewer
+-document.addEventListener("DOMContentLoaded", () => {
++// Excalidraw Map Viewer with Pan and Zoom
++function initExcalidrawMaps() {
+   const mapContainers = document.querySelectorAll(".excalidraw-map-container")
+ 
+   mapContainers.forEach(async (container) => {
+@@ -19,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
+       }
+ 
+       // Render the map
+-      renderExcalidrawPreview(canvas, data)
++      renderExcalidrawPreview(canvas as HTMLElement, data, container as HTMLElement)
+     } catch (error: any) {
+       console.error("Error rendering Excalidraw:", error)
+       const canvas = container.querySelector(".excalidraw-map-canvas")
+@@ -33,9 +33,168 @@ document.addEventListener("DOMContentLoaded", () => {
+       }
+     }
+   })
+-})
++}
++
++// Initialize on both initial load and SPA navigation
++document.addEventListener("DOMContentLoaded", initExcalidrawMaps)
++document.addEventListener("nav", initExcalidrawMaps)
++
++class PanZoom {
++  private svg: SVGElement
++  private container: HTMLElement
++  private viewBox: { x: number; y: number; width: number; height: number }
++  private scale = 1
++  private isPanning = false
++  private startPoint = { x: 0, y: 0 }
++  private endPoint = { x: 0, y: 0 }
++
++  constructor(svg: SVGElement, container: HTMLElement) {
++    this.svg = svg
++    this.container = container
++
++    // Get initial viewBox
++    const vb = svg.getAttribute("viewBox")?.split(" ").map(Number) || [0, 0, 800, 600]
++    this.viewBox = { x: vb[0], y: vb[1], width: vb[2], height: vb[3] }
++
++    this.setupEventListeners()
++  }
++
++  private setupEventListeners() {
++    // Mouse events for panning
++    this.container.addEventListener("mousedown", this.onMouseDown.bind(this))
++    this.container.addEventListener("mousemove", this.onMouseMove.bind(this))
++    this.container.addEventListener("mouseup", this.onMouseUp.bind(this))
++    this.container.addEventListener("mouseleave", this.onMouseUp.bind(this))
++
++    // Touch events for mobile
++    this.container.addEventListener("touchstart", this.onTouchStart.bind(this), {
++      passive: false,
++    })
++    this.container.addEventListener("touchmove", this.onTouchMove.bind(this), {
++      passive: false,
++    })
++    this.container.addEventListener("touchend", this.onTouchEnd.bind(this))
++
++    // Wheel for zoom
++    this.container.addEventListener("wheel", this.onWheel.bind(this), { passive: false })
++  }
++
++  private getPoint(event: MouseEvent | Touch) {
++    const rect = this.container.getBoundingClientRect()
++    return {
++      x: event.clientX - rect.left,
++      y: event.clientY - rect.top,
++    }
++  }
++
++  private onMouseDown(event: MouseEvent) {
++    this.isPanning = true
++    this.startPoint = this.getPoint(event)
++    this.endPoint = this.startPoint
++    this.container.style.cursor = "grabbing"
++  }
++
++  private onMouseMove(event: MouseEvent) {
++    if (!this.isPanning) return
++
++    this.endPoint = this.getPoint(event)
++    const dx = (this.endPoint.x - this.startPoint.x) * (this.viewBox.width / this.container.clientWidth)
++    const dy =
++      (this.endPoint.y - this.startPoint.y) * (this.viewBox.height / this.container.clientHeight)
++
++    this.viewBox.x -= dx
++    this.viewBox.y -= dy
++    this.updateViewBox()
++
++    this.startPoint = this.endPoint
++  }
++
++  private onMouseUp() {
++    this.isPanning = false
++    this.container.style.cursor = "grab"
++  }
++
++  private onTouchStart(event: TouchEvent) {
++    if (event.touches.length === 1) {
++      event.preventDefault()
++      this.isPanning = true
++      this.startPoint = this.getPoint(event.touches[0])
++      this.endPoint = this.startPoint
++    }
++  }
++
++  private onTouchMove(event: TouchEvent) {
++    if (!this.isPanning || event.touches.length !== 1) return
++
++    event.preventDefault()
++    this.endPoint = this.getPoint(event.touches[0])
++    const dx = (this.endPoint.x - this.startPoint.x) * (this.viewBox.width / this.container.clientWidth)
++    const dy =
++      (this.endPoint.y - this.startPoint.y) * (this.viewBox.height / this.container.clientHeight)
++
++    this.viewBox.x -= dx
++    this.viewBox.y -= dy
++    this.updateViewBox()
+ 
+-function renderExcalidrawPreview(container: Element, data: any) {
++    this.startPoint = this.endPoint
++  }
++
++  private onTouchEnd() {
++    this.isPanning = false
++  }
++
++  private onWheel(event: WheelEvent) {
++    event.preventDefault()
++
++    const delta = event.deltaY > 0 ? 1.1 : 0.9
++    this.zoom(delta, this.getPoint(event))
++  }
++
++  public zoom(factor: number, point?: { x: number; y: number }) {
++    const oldScale = this.scale
++    this.scale *= factor
++
++    // Limit zoom
++    if (this.scale < 0.1) {
++      this.scale = 0.1
++      return
++    }
++    if (this.scale > 10) {
++      this.scale = 10
++      return
++    }
++
++    if (point) {
++      // Zoom towards mouse position
++      const scaleChange = factor - 1
++      const viewX = this.viewBox.x + (point.x / this.container.clientWidth) * this.viewBox.width
++      const viewY = this.viewBox.y + (point.y / this.container.clientHeight) * this.viewBox.height
++
++      this.viewBox.x += viewX * scaleChange
++      this.viewBox.y += viewY * scaleChange
++    }
++
++    this.viewBox.width /= factor
++    this.viewBox.height /= factor
++
++    this.updateViewBox()
++  }
++
++  public reset(initialViewBox: { x: number; y: number; width: number; height: number }) {
++    this.scale = 1
++    this.viewBox = { ...initialViewBox }
++    this.updateViewBox()
++  }
++
++  private updateViewBox() {
++    this.svg.setAttribute(
++      "viewBox",
++      `${this.viewBox.x} ${this.viewBox.y} ${this.viewBox.width} ${this.viewBox.height}`,
++    )
++  }
++}
++
++function renderExcalidrawPreview(container: HTMLElement, data: any, mapContainer: HTMLElement) {
+   // Simple preview renderer
+   const { elements = [], appState = {} } = data
+ 
+@@ -56,7 +215,14 @@ function renderExcalidrawPreview(container: Element, data: any) {
+ 
+   const width = maxX - minX || 800
+   const height = maxY - minY || 600
+-  const padding = 20
++  const padding = 50
++
++  const initialViewBox = {
++    x: minX - padding,
++    y: minY - padding,
++    width: width + padding * 2,
++    height: height + padding * 2,
++  }
+ 
+   // Create SVG
+   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+@@ -64,9 +230,8 @@ function renderExcalidrawPreview(container: Element, data: any) {
+   svg.setAttribute("height", "100%")
+   svg.setAttribute(
+     "viewBox",
+-    `${minX - padding} ${minY - padding} ${width + padding * 2} ${height + padding * 2}`,
++    `${initialViewBox.x} ${initialViewBox.y} ${initialViewBox.width} ${initialViewBox.height}`,
+   )
+-  svg.style.maxHeight = "600px"
+ 
+   // Render elements
+   elements.forEach((el: any) => {
+@@ -174,6 +339,30 @@ function renderExcalidrawPreview(container: Element, data: any) {
+     svg.appendChild(group)
+   })
+ 
++  // Clear container and add SVG
+   container.innerHTML = ""
+   container.appendChild(svg)
++  container.style.cursor = "grab"
++
++  // Initialize pan and zoom
++  const panZoom = new PanZoom(svg, container)
++
++  // Add control buttons
++  const controls = document.createElement("div")
++  controls.className = "excalidraw-controls"
++  controls.innerHTML = `
++    <button class="excalidraw-btn zoom-in" title="Zoom In">+</button>
++    <button class="excalidraw-btn zoom-out" title="Zoom Out">−</button>
++    <button class="excalidraw-btn reset" title="Reset View">⟲</button>
++  `
++
++  const zoomInBtn = controls.querySelector(".zoom-in")
++  const zoomOutBtn = controls.querySelector(".zoom-out")
++  const resetBtn = controls.querySelector(".reset")
++
++  zoomInBtn?.addEventListener("click", () => panZoom.zoom(0.8))
++  zoomOutBtn?.addEventListener("click", () => panZoom.zoom(1.2))
++  resetBtn?.addEventListener("click", () => panZoom.reset(initialViewBox))
++
++  mapContainer.appendChild(controls)
+ }
+diff --git a/quartz/plugins/transformers/excalidraw.ts b/quartz/plugins/transformers/excalidraw.ts
+index 371d446..259bc80 100644
+--- a/quartz/plugins/transformers/excalidraw.ts
++++ b/quartz/plugins/transformers/excalidraw.ts
+@@ -32,7 +32,8 @@ function decompressExcalidrawData(compressedData: string): ExcalidrawData | null
+     const decompressed = LZString.decompressFromBase64(cleaned)
+ 
+     if (!decompressed) {
+-      console.error("LZString decompression returned null")
++      console.error("LZString decompression returned null for data length:", cleaned.length)
++      console.error("Data preview:", cleaned.substring(0, 100))
+       return null
+     }
+ 
+-- 
+2.43.0
+

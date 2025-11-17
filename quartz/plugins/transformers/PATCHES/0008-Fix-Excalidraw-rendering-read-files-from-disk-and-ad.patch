@@ -1,0 +1,263 @@
+From 36d3bc00312f5c7c00d6a101f6e9a31ba5072d50 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 16 Nov 2025 22:08:19 +0000
+Subject: [PATCH 08/12] Fix Excalidraw rendering - read files from disk and add
+ freedraw support
+
+- Replace pako with lz-string for proper LZ-String decompression
+- Read original markdown files from disk to access content before OFM removes %% comments
+- Add support for freedraw, line, and arrow element types in client-side renderer
+- Successfully decompress and render user's ex-test.md drawing
+---
+ package-lock.json                             | 25 +++++--
+ package.json                                  |  6 +-
+ .../components/scripts/excalidraw.inline.ts   | 39 +++++++++++
+ quartz/plugins/transformers/excalidraw.ts     | 70 +++++++++++++++----
+ 4 files changed, 121 insertions(+), 19 deletions(-)
+
+diff --git a/package-lock.json b/package-lock.json
+index 68bff6a..7ff7c53 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -33,11 +33,13 @@
+         "is-absolute-url": "^4.0.1",
+         "js-yaml": "^4.1.0",
+         "lightningcss": "^1.29.3",
++        "lz-string": "^1.5.0",
+         "mdast-util-find-and-replace": "^3.0.2",
+         "mdast-util-to-hast": "^13.2.0",
+         "mdast-util-to-string": "^4.0.0",
+         "micromorph": "^0.4.5",
+         "minimatch": "^10.0.1",
++        "pako": "^2.1.0",
+         "pixi.js": "^8.9.1",
+         "preact": "^10.26.5",
+         "preact-render-to-string": "^6.5.13",
+@@ -5566,6 +5568,15 @@
+         "node": "20 || >=22"
+       }
+     },
++    "node_modules/lz-string": {
++      "version": "1.5.0",
++      "resolved": "https://registry.npmjs.org/lz-string/-/lz-string-1.5.0.tgz",
++      "integrity": "sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==",
++      "license": "MIT",
++      "bin": {
++        "lz-string": "bin/bin.js"
++      }
++    },
+     "node_modules/markdown-table": {
+       "version": "3.0.3",
+       "resolved": "https://registry.npmjs.org/markdown-table/-/markdown-table-3.0.3.tgz",
+@@ -7242,10 +7253,10 @@
+       "integrity": "sha512-dATvCeZN/8wQsGywez1mzHtTlP22H8OEfPrVMLNr4/eGa+ijtLn/6M5f0dY8UKNrC2O9UCU6SSoG3qRKnt7STw=="
+     },
+     "node_modules/pako": {
+-      "version": "0.2.9",
+-      "resolved": "https://registry.npmjs.org/pako/-/pako-0.2.9.tgz",
+-      "integrity": "sha512-NUcwaKxUxWrZLpDG+z/xZaCgQITkA/Dv4V/T6bw7VON6l1Xz/VnrBqrYjZQ12TamKHzITTfOEIYUj48y2KXImA==",
+-      "license": "MIT"
++      "version": "2.1.0",
++      "resolved": "https://registry.npmjs.org/pako/-/pako-2.1.0.tgz",
++      "integrity": "sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==",
++      "license": "(MIT AND Zlib)"
+     },
+     "node_modules/parse-css-color": {
+       "version": "0.2.1",
+@@ -9154,6 +9165,12 @@
+         "tiny-inflate": "^1.0.0"
+       }
+     },
++    "node_modules/unicode-trie/node_modules/pako": {
++      "version": "0.2.9",
++      "resolved": "https://registry.npmjs.org/pako/-/pako-0.2.9.tgz",
++      "integrity": "sha512-NUcwaKxUxWrZLpDG+z/xZaCgQITkA/Dv4V/T6bw7VON6l1Xz/VnrBqrYjZQ12TamKHzITTfOEIYUj48y2KXImA==",
++      "license": "MIT"
++    },
+     "node_modules/unicorn-magic": {
+       "version": "0.3.0",
+       "resolved": "https://registry.npmjs.org/unicorn-magic/-/unicorn-magic-0.3.0.tgz",
+diff --git a/package.json b/package.json
+index 5e40682..5001bf2 100644
+--- a/package.json
++++ b/package.json
+@@ -42,8 +42,6 @@
+     "@napi-rs/simple-git": "0.1.19",
+     "@tweenjs/tween.js": "^25.0.0",
+     "@webgpu/types": "^0.1.60",
+-    "react": "npm:@preact/compat",
+-    "react-dom": "npm:@preact/compat",
+     "ansi-truncate": "^1.2.0",
+     "async-mutex": "^0.5.0",
+     "chalk": "^5.4.1",
+@@ -61,16 +59,20 @@
+     "is-absolute-url": "^4.0.1",
+     "js-yaml": "^4.1.0",
+     "lightningcss": "^1.29.3",
++    "lz-string": "^1.5.0",
+     "mdast-util-find-and-replace": "^3.0.2",
+     "mdast-util-to-hast": "^13.2.0",
+     "mdast-util-to-string": "^4.0.0",
+     "micromorph": "^0.4.5",
+     "minimatch": "^10.0.1",
++    "pako": "^2.1.0",
+     "pixi.js": "^8.9.1",
+     "preact": "^10.26.5",
+     "preact-render-to-string": "^6.5.13",
+     "pretty-bytes": "^6.1.1",
+     "pretty-time": "^1.1.0",
++    "react": "npm:@preact/compat",
++    "react-dom": "npm:@preact/compat",
+     "reading-time": "^1.5.0",
+     "rehype-autolink-headings": "^7.1.0",
+     "rehype-citation": "^2.3.1",
+diff --git a/quartz/components/scripts/excalidraw.inline.ts b/quartz/components/scripts/excalidraw.inline.ts
+index 0f8b273..59a0643 100644
+--- a/quartz/components/scripts/excalidraw.inline.ts
++++ b/quartz/components/scripts/excalidraw.inline.ts
+@@ -118,6 +118,45 @@ function renderExcalidrawPreview(container: Element, data: any) {
+       } else {
+         group.appendChild(text)
+       }
++    } else if (el.type === "freedraw") {
++      // Handle freehand drawing
++      if (el.points && el.points.length > 0) {
++        const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
++
++        // Convert points array to SVG path
++        let d = `M ${el.x + el.points[0][0]} ${el.y + el.points[0][1]}`
++        for (let i = 1; i < el.points.length; i++) {
++          d += ` L ${el.x + el.points[i][0]} ${el.y + el.points[i][1]}`
++        }
++
++        path.setAttribute("d", d)
++        path.setAttribute("fill", "none")
++        path.setAttribute("stroke", el.strokeColor || "#000")
++        path.setAttribute("stroke-width", String(el.strokeWidth || 1))
++        path.setAttribute("opacity", String((el.opacity || 100) / 100))
++        path.setAttribute("stroke-linecap", "round")
++        path.setAttribute("stroke-linejoin", "round")
++
++        group.appendChild(path)
++      }
++    } else if (el.type === "line" || el.type === "arrow") {
++      // Handle lines and arrows
++      if (el.points && el.points.length > 0) {
++        const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
++
++        let d = `M ${el.x + el.points[0][0]} ${el.y + el.points[0][1]}`
++        for (let i = 1; i < el.points.length; i++) {
++          d += ` L ${el.x + el.points[i][0]} ${el.y + el.points[i][1]}`
++        }
++
++        path.setAttribute("d", d)
++        path.setAttribute("fill", "none")
++        path.setAttribute("stroke", el.strokeColor || "#000")
++        path.setAttribute("stroke-width", String(el.strokeWidth || 1))
++        path.setAttribute("opacity", String((el.opacity || 100) / 100))
++
++        group.appendChild(path)
++      }
+     } else if (el.type === "image" && el.fileId) {
+       // Handle images
+       const imageData = data.files?.[el.fileId]
+diff --git a/quartz/plugins/transformers/excalidraw.ts b/quartz/plugins/transformers/excalidraw.ts
+index acd72cf..371d446 100644
+--- a/quartz/plugins/transformers/excalidraw.ts
++++ b/quartz/plugins/transformers/excalidraw.ts
+@@ -2,6 +2,9 @@ import { QuartzTransformerPlugin } from "../types"
+ import { Root } from "mdast"
+ import { visit } from "unist-util-visit"
+ import { Code } from "mdast"
++import LZString from "lz-string"
++import fs from "fs"
++import path from "path"
+ 
+ export interface ExcalidrawData {
+   type: string
+@@ -16,6 +19,48 @@ export interface Options {}
+ 
+ const defaultOptions: Options = {}
+ 
++/**
++ * Decompress Excalidraw data
++ * Uses LZ-String decompression (same as Obsidian Excalidraw plugin)
++ */
++function decompressExcalidrawData(compressedData: string): ExcalidrawData | null {
++  try {
++    // Remove newlines and whitespace (Excalidraw adds newlines every 256 chars)
++    const cleaned = compressedData.replace(/\s+/g, "")
++
++    // Decompress using LZ-String
++    const decompressed = LZString.decompressFromBase64(cleaned)
++
++    if (!decompressed) {
++      console.error("LZString decompression returned null")
++      return null
++    }
++
++    // Parse JSON
++    const parsed = JSON.parse(decompressed)
++
++    if (parsed.type === "excalidraw") {
++      return parsed as ExcalidrawData
++    }
++
++    return null
++  } catch (e) {
++    console.error("Failed to decompress Excalidraw data:", e)
++    return null
++  }
++}
++
++/**
++ * Extract compressed-json from raw markdown text
++ * This is needed because OFM transformer removes %% comments before AST parsing
++ */
++function extractCompressedJson(markdown: string): string | null {
++  // Look for ```compressed-json blocks (may be inside %% comments)
++  const regex = /```compressed-json\s*\n([\s\S]*?)\n```/
++  const match = markdown.match(regex)
++  return match ? match[1] : null
++}
++
+ /**
+  * Transformer plugin for Excalidraw drawings
+  * Parses .excalidraw.md files and extracts drawing data
+@@ -35,21 +80,20 @@ export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> =
+ 
+             // Check if this is an Excalidraw file
+             if (frontmatter && frontmatter["excalidraw-plugin"] === "parsed") {
++              const filePath = file.history?.[0]
+               let excalidrawData: ExcalidrawData | null = null
+ 
+-              // Find the JSON code block with Excalidraw data
+-              visit(tree, "code", (node: Code) => {
+-                if (node.lang === "json" && node.value) {
+-                  try {
+-                    const parsed = JSON.parse(node.value)
+-                    if (parsed.type === "excalidraw") {
+-                      excalidrawData = parsed
+-                    }
+-                  } catch (e) {
+-                    // Ignore parse errors
+-                  }
+-                }
+-              })
++              // Read the original file from disk to get content before OFM removes %% comments
++              let rawMarkdown = ""
++              if (filePath && fs.existsSync(filePath)) {
++                rawMarkdown = fs.readFileSync(filePath, "utf-8")
++              }
++
++              const compressedData = extractCompressedJson(rawMarkdown)
++
++              if (compressedData) {
++                excalidrawData = decompressExcalidrawData(compressedData)
++              }
+ 
+               // Store data for component to use
+               if (excalidrawData) {
+-- 
+2.43.0
+

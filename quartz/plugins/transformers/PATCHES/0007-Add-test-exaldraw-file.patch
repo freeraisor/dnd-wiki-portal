@@ -1,0 +1,60 @@
+From 4ac2528e62ceb5260c96dafe926a783bc91d6e0b Mon Sep 17 00:00:00 2001
+From: Ilya Laryushkin <ivlaryushkin@gmail.com>
+Date: Mon, 17 Nov 2025 00:52:57 +0300
+Subject: [PATCH 07/12] Add test exaldraw file
+
+---
+ content/ex-test.md | 40 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 40 insertions(+)
+ create mode 100644 content/ex-test.md
+
+diff --git a/content/ex-test.md b/content/ex-test.md
+new file mode 100644
+index 0000000..a960237
+--- /dev/null
++++ b/content/ex-test.md
+@@ -0,0 +1,40 @@
++---
++
++excalidraw-plugin: parsed
++tags: [excalidraw]
++
++---
++==⚠  Switch to EXCALIDRAW VIEW in the MORE OPTIONS menu of this document. ⚠== You can decompress Drawing data with the command palette: 'Decompress current Excalidraw file'. For more info check in plugin settings under 'Saving'
++
++
++# Excalidraw Data
++
++## Text Elements
++%%
++## Drawing
++```compressed-json
++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
++```
++%%
+\ No newline at end of file
+-- 
+2.43.0
+

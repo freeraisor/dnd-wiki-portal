@@ -1,0 +1,254 @@
+From f4b4b5f93ef5fd841e78028ea19a5f68317ed275 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 16 Nov 2025 21:47:16 +0000
+Subject: [PATCH 06/12] =?UTF-8?q?Fix=20Excalidraw=20rendering=20-=20=D0=BF?=
+ =?UTF-8?q?=D0=B5=D1=80=D0=B5=D0=B4=D0=B0=D1=87=D0=B0=20=D0=B4=D0=B0=D0=BD?=
+ =?UTF-8?q?=D0=BD=D1=8B=D1=85=20=D1=87=D0=B5=D1=80=D0=B5=D0=B7=20data-?=
+ =?UTF-8?q?=D0=B0=D1=82=D1=80=D0=B8=D0=B1=D1=83=D1=82?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Изменения:
+- Передаем данные excalidraw через data-excalidraw атрибут
+- Обновлен JavaScript для чтения данных из атрибута
+- Добавлен CSS для скрытия sidebar/header/footer на .excalidraw страницах
+- Полноэкранный режим с фиксированным positioning
+- Карта занимает весь экран (100vw x 100vh)
+- SVG масштабируется автоматически (max 95% viewport)
+
+Теперь карта должна отображаться корректно в полноэкранном режиме.
+---
+ quartz/components/ExcalidrawMap.tsx           | 129 +++++-------------
+ .../components/scripts/excalidraw.inline.ts   |  39 +++---
+ 2 files changed, 54 insertions(+), 114 deletions(-)
+
+diff --git a/quartz/components/ExcalidrawMap.tsx b/quartz/components/ExcalidrawMap.tsx
+index a1a112e..edc533a 100644
+--- a/quartz/components/ExcalidrawMap.tsx
++++ b/quartz/components/ExcalidrawMap.tsx
+@@ -31,36 +31,16 @@ export default (() => {
+         el.opacity < 100,
+     ).length
+ 
+-    return (
+-      <div class={classNames(displayClass, "excalidraw-map-container")}>
+-        <div class="excalidraw-map-header">
+-          <h3>🗺️ Interactive Map</h3>
+-          <div class="excalidraw-map-stats">
+-            <span class="excalidraw-stat">
+-              <span class="excalidraw-stat-icon">📍</span>
+-              {markerCount} markers
+-            </span>
+-            <span class="excalidraw-stat">
+-              <span class="excalidraw-stat-icon">🎯</span>
+-              {zoneCount} zones
+-            </span>
+-            <span class="excalidraw-stat">
+-              <span class="excalidraw-stat-icon">📐</span>
+-              {elements.length} elements
+-            </span>
+-          </div>
+-        </div>
++    // Serialize data for client-side rendering
++    const dataJson = JSON.stringify(excalidrawData)
+ 
+-        <div class="excalidraw-map-viewer">
+-          <div class="excalidraw-map-canvas" id={`excalidraw-${fileData.slug}`}>
+-            {/* Canvas will be rendered by client-side script */}
+-          </div>
+-        </div>
+-
+-        <div class="excalidraw-map-footer">
+-          <p class="excalidraw-map-note">
+-            💡 This is an Excalidraw map. Open in Obsidian to edit.
+-          </p>
++    return (
++      <div
++        class={classNames(displayClass, "excalidraw-map-container")}
++        data-excalidraw={dataJson}
++      >
++        <div class="excalidraw-map-canvas" id={`excalidraw-${fileData.slug}`}>
++          {/* Canvas will be rendered by client-side script */}
+         </div>
+       </div>
+     )
+@@ -69,49 +49,31 @@ export default (() => {
+   ExcalidrawMap.afterDOMLoaded = excalidrawScript
+ 
+   ExcalidrawMap.css = `
+-    .excalidraw-map-container {
+-      margin: 2rem 0;
+-      border: 1px solid var(--gray);
+-      border-radius: 8px;
+-      overflow: hidden;
+-      background: var(--light);
+-    }
+-
+-    .excalidraw-map-header {
+-      padding: 1rem;
+-      background: var(--lightgray);
+-      border-bottom: 1px solid var(--gray);
+-    }
+-
+-    .excalidraw-map-header h3 {
+-      margin: 0 0 0.5rem 0;
+-      font-size: 1.2rem;
+-    }
+-
+-    .excalidraw-map-stats {
+-      display: flex;
+-      gap: 1rem;
+-      font-size: 0.9rem;
+-      color: var(--gray);
+-    }
+-
+-    .excalidraw-stat {
+-      display: flex;
+-      align-items: center;
+-      gap: 0.25rem;
++    /* Hide everything for Excalidraw maps */
++    body[data-slug$=".excalidraw"] .left.sidebar,
++    body[data-slug$=".excalidraw"] .right.sidebar,
++    body[data-slug$=".excalidraw"] .page-header,
++    body[data-slug$=".excalidraw"] article,
++    body[data-slug$=".excalidraw"] .page-footer,
++    body[data-slug$=".excalidraw"] footer {
++      display: none !important;
+     }
+ 
+-    .excalidraw-stat-icon {
+-      font-size: 1.1em;
++    body[data-slug$=".excalidraw"] .center {
++      max-width: 100%;
++      margin: 0;
++      padding: 0;
+     }
+ 
+-    .excalidraw-map-viewer {
+-      padding: 1rem;
++    .excalidraw-map-container {
++      width: 100vw;
++      height: 100vh;
++      position: fixed;
++      top: 0;
++      left: 0;
+       background: white;
+-      min-height: 400px;
+-      display: flex;
+-      align-items: center;
+-      justify-content: center;
++      overflow: hidden;
++      z-index: 1;
+     }
+ 
+     .excalidraw-map-canvas {
+@@ -123,44 +85,17 @@ export default (() => {
+     }
+ 
+     .excalidraw-map-canvas svg {
+-      max-width: 100%;
++      max-width: 95%;
++      max-height: 95%;
++      width: auto;
+       height: auto;
+     }
+ 
+-    .excalidraw-map-footer {
+-      padding: 0.75rem 1rem;
+-      background: var(--lightgray);
+-      border-top: 1px solid var(--gray);
+-    }
+-
+-    .excalidraw-map-note {
+-      margin: 0;
+-      font-size: 0.85rem;
+-      color: var(--gray);
+-    }
+-
+     .excalidraw-error {
+       padding: 2rem;
+       text-align: center;
+       color: var(--red);
+     }
+-
+-    .error-details {
+-      font-size: 0.85rem;
+-      color: var(--gray);
+-      margin-top: 0.5rem;
+-    }
+-
+-    @media (max-width: 768px) {
+-      .excalidraw-map-stats {
+-        flex-direction: column;
+-        gap: 0.5rem;
+-      }
+-
+-      .excalidraw-map-viewer {
+-        min-height: 300px;
+-      }
+-    }
+   `
+ 
+   return ExcalidrawMap
+diff --git a/quartz/components/scripts/excalidraw.inline.ts b/quartz/components/scripts/excalidraw.inline.ts
+index f918c0d..0f8b273 100644
+--- a/quartz/components/scripts/excalidraw.inline.ts
++++ b/quartz/components/scripts/excalidraw.inline.ts
+@@ -1,31 +1,36 @@
+ // Excalidraw Map Viewer
+ document.addEventListener("DOMContentLoaded", () => {
+-  const mapContainers = document.querySelectorAll(".excalidraw-map-canvas")
++  const mapContainers = document.querySelectorAll(".excalidraw-map-container")
+ 
+   mapContainers.forEach(async (container) => {
+-    const fileSlug = container.id.replace("excalidraw-", "")
+-
+     try {
+-      // Get excalidraw data from page data
+-      const pageData = (window as any).__QUARTZ_DATA__
+-      if (!pageData || !pageData.excalidraw) {
+-        console.warn("No Excalidraw data found for", fileSlug)
++      // Get excalidraw data from data attribute
++      const dataAttr = container.getAttribute("data-excalidraw")
++      if (!dataAttr) {
++        console.warn("No Excalidraw data found")
+         return
+       }
+ 
+-      const data = pageData.excalidraw
++      const data = JSON.parse(dataAttr)
++      const canvas = container.querySelector(".excalidraw-map-canvas")
++      if (!canvas) {
++        console.warn("No canvas element found")
++        return
++      }
+ 
+-      // For now, show a simple SVG preview
+-      // TODO: Integrate full @excalidraw/excalidraw component
+-      renderExcalidrawPreview(container, data)
++      // Render the map
++      renderExcalidrawPreview(canvas, data)
+     } catch (error: any) {
+       console.error("Error rendering Excalidraw:", error)
+-      container.innerHTML = `
+-            <div class="excalidraw-error">
+-              <p>⚠️ Error loading map</p>
+-              <p class="error-details">${error.message}</p>
+-            </div>
+-          `
++      const canvas = container.querySelector(".excalidraw-map-canvas")
++      if (canvas) {
++        canvas.innerHTML = `
++          <div class="excalidraw-error">
++            <p>⚠️ Error loading map</p>
++            <p class="error-details">${error.message}</p>
++          </div>
++        `
++      }
+     }
+   })
+ })
+-- 
+2.43.0
+

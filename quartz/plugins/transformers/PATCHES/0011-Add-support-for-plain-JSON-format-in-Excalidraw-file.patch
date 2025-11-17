@@ -1,0 +1,71 @@
+From 3714a49d1352551e25b0ff07597081f865de59f4 Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 16 Nov 2025 22:46:24 +0000
+Subject: [PATCH 11/12] Add support for plain JSON format in Excalidraw files
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- Added extractPlainJson() function for test/demo files
+- Support both compressed-json (Obsidian) and json (test) formats
+- Fixes example-dungeon-map.excalidraw.md rendering
+- Fallback chain: compressed-json → plain json
+
+Now both formats work:
+- ex-test.md (real Obsidian file with LZ-compressed data)
+- example-dungeon-map.excalidraw.md (test file with plain JSON)
+---
+ quartz/plugins/transformers/excalidraw.ts | 25 ++++++++++++++++++++++-
+ 1 file changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/quartz/plugins/transformers/excalidraw.ts b/quartz/plugins/transformers/excalidraw.ts
+index 259bc80..cc160f1 100644
+--- a/quartz/plugins/transformers/excalidraw.ts
++++ b/quartz/plugins/transformers/excalidraw.ts
+@@ -62,6 +62,24 @@ function extractCompressedJson(markdown: string): string | null {
+   return match ? match[1] : null
+ }
+ 
++/**
++ * Extract plain json from raw markdown text
++ * For test/demo files that use plain JSON format
++ */
++function extractPlainJson(markdown: string): ExcalidrawData | null {
++  // Look for ```json blocks with excalidraw data
++  const regex = /```json\s*\n([\s\S]*?)\n```/
++  const match = markdown.match(regex)
++  if (!match) return null
++
++  try {
++    const parsed = JSON.parse(match[1])
++    return parsed.type === "excalidraw" ? parsed : null
++  } catch (e) {
++    return null
++  }
++}
++
+ /**
+  * Transformer plugin for Excalidraw drawings
+  * Parses .excalidraw.md files and extracts drawing data
+@@ -90,12 +108,17 @@ export const Excalidraw: QuartzTransformerPlugin<Partial<Options> | undefined> =
+                 rawMarkdown = fs.readFileSync(filePath, "utf-8")
+               }
+ 
++              // Try compressed format first (real Obsidian files)
+               const compressedData = extractCompressedJson(rawMarkdown)
+-
+               if (compressedData) {
+                 excalidrawData = decompressExcalidrawData(compressedData)
+               }
+ 
++              // Fallback to plain JSON format (test/demo files)
++              if (!excalidrawData) {
++                excalidrawData = extractPlainJson(rawMarkdown)
++              }
++
+               // Store data for component to use
+               if (excalidrawData) {
+                 file.data.excalidraw = excalidrawData
+-- 
+2.43.0
+
